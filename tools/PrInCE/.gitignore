@@ -1,0 +1,24 @@
+# OS X
+.DS_Store
+
+# Eclipse
+.settings
+.project
+.classpath
+/build/
+/bin/
+/target/
+
+# Rstudio
+.Rhistory
+
+# Python
+*.pyc
+.idea
+
+# compiled vignettes
+vignettes/*.html
+
+# raw data
+data-raw/*.xlsx
+.Rproj.user
