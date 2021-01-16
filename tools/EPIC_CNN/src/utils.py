@@ -141,7 +141,8 @@ def cv_bench_clf(scoreCalc, clf, gs, outDir, verbose=False, format="pdf", k_d_tr
 
 	this_targets, preds, probs, precision, recall, fmeasure, auc_pr, auc_roc, curve_pr, curve_roc = clf.cv_eval(data, targets, outDir, k_d_training, folds, train_test_ratio, num_ep, num_frc)
 
-	eval_plotting(outDir, this_targets, preds, probs, precision, recall, fmeasure, auc_pr, auc_roc, curve_pr, curve_roc)
+	outDir_all_pos_neg_testing = outDir + os.sep + "all_pos_neg_testing"
+	eval_plotting(outDir_all_pos_neg_testing, this_targets, preds, probs, precision, recall, fmeasure, auc_pr, auc_roc, curve_pr, curve_roc)
 
 
 
@@ -285,7 +286,7 @@ def predictInteractions(scoreCalc, clf, gs, outDir, to_train=True, verbose= True
 
 	this_targets, preds, probs, precision, recall, fmeasure, auc_pr, auc_roc, curve_pr, curve_roc = clf.cv_model_creation(data_train, targets_train, k_d_training, folds, train_test_ratio, num_ep, num_frc)
 
-	outDir_all_pos_neg_train = outDir + os.sep + "all_pos_neg_train"
+	outDir_all_pos_neg_train = outDir + os.sep + "all_pos_neg_training"
 	eval_plotting(outDir_all_pos_neg_train, this_targets, preds, probs, precision, recall, fmeasure, auc_pr, auc_roc, curve_pr, curve_roc)
 
 	this_targets, preds, probs, precision, recall, fmeasure, auc_pr, auc_roc, curve_pr, curve_roc = clf.cv_model_all_pos_neg_eval(data_all, targets_all, k_d_training, folds, train_test_ratio)

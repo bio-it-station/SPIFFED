@@ -78,6 +78,25 @@ def main():
 	parser.add_argument("-P", "--precalcualted_score_file", type = str,help="Path to precalulated scorefile to read scores from for faster rerunning of EPIC. default = None",
 						default="NONE")
 
+	########################
+	## New added argument ##
+	########################
+	# k-fold or direct training:
+	parser.add_argument("--K_D_TRAIN", type = str, help="Values: d, k", default="d")
+	# fold_num
+	parser.add_argument("--FOLD_NUM", type = int, help="default = 5", default=5)
+	# train_test_ratio
+	parser.add_argument("--TRAIN_TEST_RATIO", type = float, help="default = 0.3", default=0.3)
+	# pos_neg_ratio
+	parser.add_argument("--POS_NEG_RATIO", type = int, help="default = 1", default=1)
+	# num_ep
+	parser.add_argument("--NUM_EP", type = int, help="default = 2", default=2)
+	# num_frc
+	parser.add_argument("--NUM_FRC", type = int, help="default = 27", default=27)
+	############################
+	## New added argument END ##
+	############################
+
 	args = parser.parse_args()
 
 	args.mode = args.mode.upper()
@@ -86,30 +105,46 @@ def main():
 	##########################################
 	## This part is "PASE INPUT"
 	##########################################
-	K_D_TRAIN = raw_input("Enter k-fold or direct training (k/d):")
-	if K_D_TRAIN == "k":
-		print "You are using k-fold training!"
-		FOLD_NUM = input("Enter fold number:")
-		print("Fold number is: " + str(FOLD_NUM))
-		TRAIN_TEST_RATIO = None
-	elif K_D_TRAIN == "d":
-		print "You are using direct training!"
-		TRAIN_TEST_RATIO = input("Enter test/all_data ratio:")
-		print("Your TRAIN_TEST_RATIO ratio is: " + str(TRAIN_TEST_RATIO))
-		FOLD_NUM = None
-	else:
-		print "Please input 'k' or 'd'."
-		sys.exit()
-	NUM_EP = 2
-	NUM_FRC = input("Enter number of fractions:")
-	POS_NEG_RATIO = input("Enter negative/positive ratio:")
+	# K_D_TRAIN = raw_input("Enter k-fold or direct training (k/d):")
+	# if K_D_TRAIN == "k":
+	# 	print "You are using k-fold training!"
+	# 	FOLD_NUM = input("Enter fold number:")
+	# 	print("Fold number is: " + str(FOLD_NUM))
+	# 	TRAIN_TEST_RATIO = None
+	# elif K_D_TRAIN == "d":
+	# 	print "You are using direct training!"
+	# 	TRAIN_TEST_RATIO = input("Enter test/all_data ratio:")
+	# 	print("Your TRAIN_TEST_RATIO ratio is: " + str(TRAIN_TEST_RATIO))
+	# 	FOLD_NUM = None
+	# else:
+	# 	print "Please input 'k' or 'd'."
+	# 	sys.exit()
+	# NUM_EP = 2
+	# NUM_FRC = input("Enter number of fractions:")
+	# POS_NEG_RATIO = input("Enter negative/positive ratio:")
 	# num_ep = 2
 	# num_frc = 27
+	K_D_TRAIN = args.K_D_TRAIN
+	FOLD_NUM = args.FOLD_NUM
+	if FOLD_NUM == 0:
+		FOLD_NUM = None
+	TRAIN_TEST_RATIO = args.TRAIN_TEST_RATIO
+	POS_NEG_RATIO = args.POS_NEG_RATIO
+	NUM_EP = args.NUM_EP
+	NUM_FRC = args.NUM_FRC
+	print("  * K_D_TRAIN: ", K_D_TRAIN)
+	print("  * FOLD_NUM: ", FOLD_NUM)
+	print("  * TRAIN_TEST_RATIO: ", TRAIN_TEST_RATIO)
+	print("  * POS_NEG_RATIO: ", POS_NEG_RATIO)
+	print("  * NUM_EP: ", NUM_EP)
+	print("  * NUM_FRC: ", NUM_FRC)
 	##########################################
 	## End of "PASE INPUT"
 	##########################################
 
-	#Create feature combination
+	##########################################
+	## Create feature combination
+	##########################################
  	if args.feature_selection == "00000000":
 		print "Select at least one feature"
 		sys.exit()
@@ -122,11 +157,21 @@ def main():
 	else:
 		this_scores = utils.get_fs_comb(args.feature_selection)
 		print "\t".join([fs.name for fs in this_scores])
+	##########################################
+	## End of feature combination
+	##########################################
 
-	# Load elution data
+	##########################################
+	## "Load elution data"
+	##########################################
  	foundprots, elution_datas = utils.load_data(args.input_dir, this_scores, fc=args.frac_count, mfc=args.elution_max_count)
+	##########################################
+	## End of "Load elution data"
+	##########################################
 
-	# Generate reference data set
+	##########################################
+	## "Generate reference data set"
+	##########################################
 	gs = ""
 	if ((args.taxid != "" and  args.ppi != "") or (args.cluster != "" and  args.ppi != "" )):
 		print "Refernce from cluster and PPI are nor compatiple. Please supply ppi or complex reference, not both!"
@@ -152,11 +197,10 @@ def main():
 		print "Reading PPI file from %s" % args.reference
 		gs = Goldstandard_from_PPI_File(args.ppi, foundprots)
 
-
-
 	print gs_clusters
 	if 	len(gs_clusters)>0:
 		gs = utils.create_goldstandard(gs_clusters, args.taxid, foundprots, pos_neg_ratio = POS_NEG_RATIO)
+
 
 	output_dir = args.output_dir + os.sep + args.output_prefix
 
@@ -167,31 +211,39 @@ def main():
 	for comp in gs.complexes.complexes:
 			print >> refFH, "%s\t%s" % (",".join(comp), ",".join(gs.complexes.complexes[comp]))
 	refFH.close()
+	##########################################
+	## End of "Generate reference data set"
+	##########################################
 
+
+	##########################################
+	## "Creating classifier"
+	##########################################
 	classifier_select = args.classifier
 	clf = CS.CLF_Wrapper(args.num_cores, classifier_select, num_ep=NUM_EP, num_frc=NUM_FRC, pos_neg_ratio = POS_NEG_RATIO)
+	##########################################
+	## End of "Creating classifier"
+	##########################################
 
+
+	##########################################
+	## Calculating coelutionScores
+	##########################################
 	scoreCalc = CS.CalculateCoElutionScores(this_scores, elution_datas, output_dir + ".scores.txt", num_cores=args.num_cores, cutoff= args.co_elution_cutoff)
 	if args.precalcualted_score_file == "NONE":
 		scoreCalc.calculate_coelutionDatas(gs)
 	else:
  		scoreCalc.readTable(args.precalcualted_score_file, gs)
 
-
-
-
-
-
-
-	# scoreCalc_pkl_path = "/Users/chaokuan-hao/Documents/BIO_IT_Station/output/ppi/clf_RAW_1_CNN.pkl"
-	# with open(scoreCalc_pkl_path, 'rb') as f:
-	#     scoreCalc = pickle.load(f)
-	# Initialize CLF
-
-
-
 	print("scoreCalc.scores.shape: ", scoreCalc.scores.shape)
+	##########################################
+	## End of "Calculating coelutionScores"
+	##########################################
 
+
+	##########################################
+	## "Balancing Positive & Negative" PPIs
+	##########################################
 	functionalData = ""
 	gs.positive = set(gs.positive & set(scoreCalc.ppiToIndex.keys()))
 	gs.negative = set(gs.negative & set(scoreCalc.ppiToIndex.keys()))
@@ -201,7 +253,9 @@ def main():
 
 	print("len(gs.positive): ", len(gs.positive))
 	print("len(gs.negative): ", len(gs.negative))
-
+	###############################################
+	## End of "Balancing Positive & Negative" PPIs
+	###############################################
 
 	if args.mode != "EXP":
 		print "Loading functional data"
@@ -241,9 +295,9 @@ def main():
 	# print utils.cv_bench_clf(scoreCalc, clf, gs, args.output_dir, verbose=False, format="pdf", folds=5)
 	#print "I am here"
 
-	##########################################
+	##############################################
 	## This part is "MODEL TRAINING & PREDICTION"
-	##########################################
+	##############################################
 	network = utils.make_predictions(scoreCalc, args.mode, clf, gs, output_dir, fun_anno=functionalData, verbose = False, k_d_training = K_D_TRAIN, folds = FOLD_NUM, train_test_ratio = TRAIN_TEST_RATIO)
 
 	# Predict protein interaction
@@ -258,9 +312,9 @@ def main():
 
 	print >> outFH, "\n".join(final_network)
 	outFH.close()
-	##########################################
+	#############################################
 	## End of "MODEL TRAINING & PREDICTION"
-	##########################################
+	#############################################
 
 	# Predicting clusters
 	utils.predict_clusters("%s.pred.txt" % (output_dir), "%s.clust.txt" % (output_dir))

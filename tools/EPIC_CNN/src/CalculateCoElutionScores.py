@@ -963,6 +963,8 @@ class CalculateCoElutionScores():
 
 			for ed in self.elutionData:
 				score_index, score = out_queue.get()
+				# print("score_index: ", score_index)
+				# print("score: ", score)
 				if hasattr(score, "__len__"):
 					ppi_scores = np.concatenate((ppi_scores, score), axis=1)
 					# print("score: ", score)
@@ -1163,7 +1165,7 @@ def CNN_raw_ef_model(num_ep, num_frc):
 	model.add(Conv2D(128, kernel_size=(2,2), activation='relu', input_shape=(num_ep, num_frc,1)))
 	# model.add(Conv2D(64, kernel_size=1, activation='relu'))
 	model.add(Flatten())
-	model.add(Dense(60, activation='relu'))
+	# model.add(Dense(60, activation='relu'))
 	# model.add(Dropout(0.2))
 	model.add(Dense(30, activation='relu'))
 	model.add(Dropout(0.5))
