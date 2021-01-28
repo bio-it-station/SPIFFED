@@ -164,7 +164,7 @@ def main():
 	##########################################
 	## "Load elution data"
 	##########################################
- 	foundprots, elution_datas = utils.load_data(args.input_dir, this_scores, fc=args.frac_count, mfc=args.elution_max_count)
+	foundprots, elution_datas = utils.load_data(args.input_dir, this_scores, fc=args.frac_count, mfc=args.elution_max_count)
 	##########################################
 	## End of "Load elution data"
 	##########################################
@@ -188,10 +188,13 @@ def main():
 
 	if args.cluster != "":
 		print "Loading complexes from file"
+		print("&& args.cluster: ", args.cluster)
+		print("&& args.mode: ", args.mode)
 		if args.mode == "FA":
 			gs_clusters.append(GS.FileClusters(args.cluster, "all"))
 		else:
 			gs_clusters.append(GS.FileClusters(args.cluster, foundprots))
+
 
 	if args.ppi != "":
 		print "Reading PPI file from %s" % args.reference

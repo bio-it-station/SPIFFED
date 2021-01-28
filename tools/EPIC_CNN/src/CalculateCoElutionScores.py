@@ -1215,10 +1215,13 @@ class CLF_Wrapper:
 
 	def fit(self, data, targets):
 		early_stopping = EarlyStopping(monitor='val_loss', patience=50, verbose=2)
-		print("weights: ", self.pos_neg_ratio)
-		weights = {0:1, 1:self.pos_neg_ratio}
+		# print("weights: ", self.pos_neg_ratio)
+		# weights = {0:1, 1:self.pos_neg_ratio}
 		# weights = {0:1, 1:1}
-		self.clf.fit(data, targets, epochs=200, callbacks=[early_stopping], class_weight=weights)
+		# With weights
+		# self.clf.fit(data, targets, epochs=200, callbacks=[early_stopping], class_weight=weights)
+		# Without weights
+		self.clf.fit(data, targets, epochs=200, callbacks=[early_stopping])
 		# self.clf.fit(data, targets)
 
 	def eval(self, data, targets):

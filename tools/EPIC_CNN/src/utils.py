@@ -785,12 +785,14 @@ def eval_plotting(outDir, this_targets, preds, probs, precision, recall, fmeasur
 	plotCurves([("Precision", (precision_vals, threshold)), ("Recall", (recall_vals, threshold))], outDir + "/cutoff.pdf", "Cutoff", "Evaluation metric score")
 
 	print("     ** Plot confusion_matrix: ")
-	skplt.metrics.plot_confusion_matrix(this_targets, preds, normalize=False)
+	# fig, ax = plt.subplots(figsize=(30, 30))
+	skplt.metrics.plot_confusion_matrix(this_targets, preds, normalize=False, text_fontsize=30)
 	plt.savefig(os.path.join(outDir, "confusion_matrix.png"), dpi=400)
+
 	plt.close()
 
 	print("     ** Plot normalized confusion_matrix: ")
-	skplt.metrics.plot_confusion_matrix(this_targets, preds, normalize=True)
+	skplt.metrics.plot_confusion_matrix(this_targets, preds, normalize=True, text_fontsize=30)
 	plt.savefig(os.path.join(outDir, "confusion_matrix_normalized.png"), dpi=400)
 	plt.close()
 
