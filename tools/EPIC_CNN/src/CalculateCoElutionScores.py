@@ -12,11 +12,15 @@ from scipy.spatial import distance
 import operator
 from sklearn.model_selection import train_test_split, StratifiedKFold
 from sklearn.metrics import precision_recall_curve, roc_curve, average_precision_score, roc_auc_score, precision_recall_fscore_support
+from sklearn.metrics import confusion_matrix, classification_report, accuracy_score
 from sklearn.model_selection import  cross_val_predict
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.pipeline import Pipeline
 from sklearn.feature_selection import RFECV
 import xml.etree.ElementTree as ET
+
+from sklearn.semi_supervised import LabelSpreading
+from sklearn.linear_model import LogisticRegression
 
 from sklearn import svm, linear_model
 from sklearn import metrics
@@ -781,6 +785,7 @@ class CalculateCoElutionScores():
 		self.verbose = verbose
 		self.elutionData = elutionData
 		self.scores = np.array([])
+		self.unsureScores = np.array([])
 		# self.ALL_scores = np.array([])
 		self.header = ["ProtA","ProtB"]
 		self.ppiToIndex = {}
@@ -790,6 +795,11 @@ class CalculateCoElutionScores():
 		self.to_predict = 0
 		self.scoreF = ""
 		self.fun_anno=""
+
+		# PPIs
+		self.positive = set([])
+		self.negative = set([])
+		self.unsure = set([])
 
 		for eD in self.elutionData:
 			for score in self.features:
@@ -912,23 +922,22 @@ class CalculateCoElutionScores():
 	# @Param:
 	#		scoreTypes	a list of co elutoin score objects
 	#		PPIs		a list of ppis for which all scores in scoreTypes schoukd be calculated
-	def calculateScores(self, toPred, tokeep=set([])):
+	def calculateScores(self, toPred, positive=set([]), negative=set([])):
 		task_queue = mp.JoinableQueue()
 		out_queue = mp.Queue()
 		self.ppiToIndex = {}
-		num_rows = len(tokeep)
+		num_rows = len(positive) + len(negative)
+		# print("toPred: ", toPred)
+		unsure_num_rows = len(toPred)
 		num_features = len(self.features)*len(self.elutionData)
 		num_frc = 0
-
 		for ed in self.elutionData:
 			num_frc += len(ed.elutionMat[0])
 		# for i in range(self.num_cores):  # remove one core since listener is a sapareted process
 		# 	mp.Process(target=getScore, args=(task_queue, out_queue)).start()
-		print("num_rows: ", num_rows)
-		print("len(self.features): ", len(self.features))
-		print("num_frc: ", num_frc)
 
 		self.scores = np.zeros((num_rows, 2, num_frc))
+		self.unsureScores = np.zeros((unsure_num_rows, 2, num_frc))
 
 		for i in range(self.num_cores):  # remove one core since listener is a sapareted process
 			mp.Process(target=getScore, args=(task_queue, out_queue)).start()
@@ -938,6 +947,7 @@ class CalculateCoElutionScores():
 		print >> outFH, "\t".join(self.header)
 		k = 0
 		ppi_index = 0
+		unsure_ppi_index = 0
 		write_buffer = ""
 		for ppi in toPred:
 			k += 1
@@ -983,28 +993,44 @@ class CalculateCoElutionScores():
 
 			# Add correlation selection condition
 			# print("** ppi_scores: ", ppi_scores.shape)
-			correlation = np.correlate(ppi_scores[0], ppi_scores[1])
+			# correlation = np.correlate(ppi_scores[0], ppi_scores[1])
 			# print("** correlation: ", correlation)
 			# if correlation > 0.2:
-			if True:
-				# if len(ppi_scores[np.where(ppi_scores > 0)]) > 2:
-				self.to_predict += 1
-				write_buffer +=  "%s\t%s\n" % (ppi, "\t".join(map(str, ppi_scores.flatten())))
-				if ppi in tokeep:
-					self.ppiToIndex[ppi] = ppi_index
-					self.IndexToPpi[ppi_index] = ppi
-					# print("ppi_scores: ", ppi_scores)
-					# print("self.scores.shape: ", self.scores.shape)
-					# print("ppi_scores.shape: ", ppi_scores.shape)
-					self.scores[ppi_index,:] = ppi_scores
-					# print("self.scores: ", self.scores.shape)
-					ppi_index += 1
+
+			# if len(ppi_scores[np.where(ppi_scores > 0)]) > 2:
+			self.to_predict += 1
+			write_buffer +=  "%s\t%s\n" % (ppi, "\t".join(map(str, ppi_scores.flatten())))
+			if ppi in positive:
+				self.positive.add(ppi)
+
+				self.ppiToIndex[ppi] = ppi_index
+				self.IndexToPpi[ppi_index] = ppi
+				self.scores[ppi_index,:] = ppi_scores
+				ppi_index += 1
+
+			elif ppi in negative:
+				self.negative.add(ppi)
+
+				self.ppiToIndex[ppi] = ppi_index
+				self.IndexToPpi[ppi_index] = ppi
+				self.scores[ppi_index,:] = ppi_scores
+				ppi_index += 1
+
+			else:
+				# The ppi is unsure
+				self.unsure.add(ppi)
+				self.unsureScores[unsure_ppi_index,:] = ppi_scores
+				unsure_ppi_index += 1
+
 
 		print >> outFH, write_buffer
 		outFH.close()
 		print("done calcualting co-elution scores")
 		self.scores = self.scores[0:ppi_index,:]
-		print("** self.scores: ", self.scores)
+		self.unsureScores = self.unsureScores[0:unsure_ppi_index,:]
+		print("** self.scores.shape: ", self.scores.shape)
+		print("** self.unsureScores.shape: ", self.unsureScores.shape)
+
 		for i in range(self.num_cores):
 			task_queue.put('STOP')
 		self.scoreF = self.outF
@@ -1057,7 +1083,7 @@ class CalculateCoElutionScores():
 	def calculate_coelutionDatas(self, gs=""):
 		toPred = self.getAllPairs()
 		if gs !="":
-			self.calculateScores(toPred, gs.get_edges())
+			self.calculateScores(toPred, gs.positive, gs.negative)
 		else:
 			self.calculateScores(toPred)
 
@@ -1112,25 +1138,33 @@ class CalculateCoElutionScores():
 		ids = []
 		targets = []
 		used_indeces = []
+		unsure_targets = []
 		print("&& self.scores.shape[0]: ", self.scores.shape[0])
 		pos_count = 0
 		neg_count = 0
 		for i in range(self.scores.shape[0]):
 			ppi = self.IndexToPpi[i]
-			label = "?"
+			label = -1
 			if ppi in gs.positive:
 				label = 1
 				pos_count += 1
 			if ppi in gs.negative:
 				label = 0
 				neg_count += 1
-			if label != "?":
+			if label != -1:
 				targets.append(label)
 				ids.append(ppi)
 				used_indeces.append(i)
+		# self.unsureScores
+		unsure_targets = np.repeat(-1, self.unsureScores.shape[0])
+
 		print("&& pos_count: ", pos_count)
 		print("&& neg_count: ", neg_count)
+		print("&& uns_count: ", self.unsureScores.shape[0])
 
+		return ids, self.scores[used_indeces, :], np.array(targets), self.unsureScores, unsure_targets
+
+	def toSklearnDataAll(self, gs):
 		ids_all = []
 		targets_all = []
 		used_indeces_all = []
@@ -1140,24 +1174,25 @@ class CalculateCoElutionScores():
 		unsure_count_all = 0
 		for i in range(self.scores.shape[0]):
 			ppi = self.IndexToPpi[i]
-			label_all = "?"
+			label_all = -1
 			if ppi in gs.all_positive:
 				label_all = 1
 				pos_count_all += 1
 			if ppi in gs.all_negative:
 				label_all = 0
 				neg_count_all += 1
-			if label_all != "?":
+			if label_all != -1:
 				targets_all.append(label_all)
 				ids_all.append(ppi)
 				used_indeces_all.append(i)
-			else:
-				unsure_count_all += 1
+		# self.unsureScores
+		unsure_targets = np.repeat(-1, self.unsureScores.shape[0])
+
 		print("&& pos_count_all: ", pos_count_all)
 		print("&& neg_count_all: ", neg_count_all)
-		print("&& unsure_count_all: ", unsure_count_all)
+		print("&& uns_count_all: ", self.unsureScores.shape[0])
 
-		return ids, self.scores[used_indeces, :], np.array(targets), ids_all, self.scores[used_indeces_all, :], np.array(targets_all)
+		return ids_all, self.scores[used_indeces_all, :], np.array(targets_all), self.unsureScores, unsure_targets
 
 def CNN_raw_ef_model(num_ep, num_frc):
 	model = Sequential()
@@ -1168,13 +1203,30 @@ def CNN_raw_ef_model(num_ep, num_frc):
 	# model.add(Dense(60, activation='relu'))
 	# model.add(Dropout(0.2))
 	model.add(Dense(30, activation='relu'))
-	model.add(Dropout(0.5))
+	model.add(Dropout(0.2))
 	model.add(Dense(20, activation='relu'))
-	model.add(Dropout(0.5))
+	model.add(Dropout(0.2))
 	model.add(Dense(10, activation='relu'))
 	model.add(Dense(5, activation='relu'))
 	model.add(Dense(1, activation='sigmoid'))
 	return model
+
+
+def label_spreading_model():
+	model = LabelSpreading()
+	return model
+
+
+
+
+
+
+
+
+
+
+
+
 
 # @ author Florian Goebels
 # wrapper for machine learning
@@ -1185,15 +1237,13 @@ class CLF_Wrapper:
 	#		data matrix with features where each row is a data point
 	#		targets list with class lables
 	# 		forest if true ml is random forst, if false ml is svm
-	def __init__(self, num_cores, classifier_select="RF", useFeatureSelection= False, num_ep=2, num_frc=60, pos_neg_ratio=1):
+	def __init__(self, num_cores, classifier_select="RF", learning_selection="sl", k_d_train = 'd', useFeatureSelection= False, num_ep=2, num_frc=60, pos_neg_ratio=1):
 		self.num_cores = num_cores
 		self.pos_neg_ratio = pos_neg_ratio
-		# if forest:
-		# 	print("using Random forest")
-		# 	thisCLF = RandomForestClassifier(n_estimators=1000, n_jobs=self.num_cores, random_state=0)
-		# else:
-		# 	print("Using SVM")
-		# 	thisCLF =  svm.SVC(kernel="linear", probability=True)
+		self.classifier_select = classifier_select
+		self.learning_selection = learning_selection
+		self.k_d_train = k_d_train
+
 		if classifier_select == "RF":
 			print("using Random forest")
 			thisCLF = RandomForestClassifier(n_estimators=1000, n_jobs=self.num_cores, random_state=0)
@@ -1202,7 +1252,17 @@ class CLF_Wrapper:
 			thisCLF =  svm.SVC(kernel="linear", probability=True)
 		elif classifier_select == "CNN":
 			print("Using CNN")
-			thisCLF = CNN_raw_ef_model(num_ep, num_frc)
+			if learning_selection == "sl":
+				thisCLF = CNN_raw_ef_model(num_ep, num_frc)
+			elif learning_selection == "ssl":
+				thisCLF = CNN_raw_ef_model(num_ep, num_frc)
+				# thisCLF = ssl_CNN_raw_ef_model(num_ep, num_frc)
+		elif classifier_select == "LS":
+			print("Using ssl LabelSpreading")
+			if learning_selection == "sl":
+				sys.exist()
+			elif learning_selection == "ssl":
+				thisCLF = label_spreading_model()
 
 
 		if useFeatureSelection:
@@ -1211,6 +1271,7 @@ class CLF_Wrapper:
 				('feature_selection', RFECV(estimator=thisCLF, step=1, scoring="accuracy")),
 				('classification', thisCLF)
 			])
+		# self.baselineClf = thisCLF
 		self.clf = thisCLF
 
 	def fit(self, data, targets):
@@ -1221,7 +1282,7 @@ class CLF_Wrapper:
 		# With weights
 		# self.clf.fit(data, targets, epochs=200, callbacks=[early_stopping], class_weight=weights)
 		# Without weights
-		self.clf.fit(data, targets, epochs=200, callbacks=[early_stopping])
+		self.clf.fit(data, targets, batch_size=50, epochs=1000, callbacks=[early_stopping])
 		# self.clf.fit(data, targets)
 
 	def eval(self, data, targets):
@@ -1242,9 +1303,56 @@ class CLF_Wrapper:
 		return [targets, preds, probs, precision, recall, fmeasure, auc_pr, auc_roc, curve_pr, curve_roc]
 		# return [targets, preds, probs, precision, recall, fmeasure, auc_pr, auc_roc, curve_pr, curve_roc]
 
-	def cv_eval(self, data, targets, outDir, k_d_training="k", folds=None, train_test_ratio=None, num_ep = 2, num_frc = None):
+
+	def cv_eval(self, data, targets, uns_data, uns_targets, outDir, folds=None, train_test_ratio=None, num_ep = 2, num_frc = None):
 		print "Model Evaluation ~!"
-		if k_d_training == "k":
+		if self.k_d_train == "k":
+			print("******* K-fold Evaluating (baseline model)")
+			print "    Fold number : " + str(folds)
+			skf = StratifiedKFold(folds)
+			probs = []
+			preds = []
+			this_targets = []
+			i = 1
+			for train, test in skf.split(data, targets):
+				#print "Processing fold %i" % i
+				print "Processing data..."
+				i += 1
+				self.clf = CNN_raw_ef_model(num_ep, num_frc)
+				self.clf.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
+				self.fit(data[train], targets[train])
+				probs.extend(self.predict_proba(data[test]))
+				preds.extend(self.predict(data[test]))
+				this_targets.extend(targets[test])
+				# loss, accuracy = self.clf.evaluate(data[test], targets[test], verbose=0)
+		elif self.k_d_train == "d":
+			print("******* Direct-training Evaluating (baseline model)")
+			print "    Training / Testing Ratio : " + str(train_test_ratio) + "/" + str(1-train_test_ratio)
+			x_train, x_test, y_train, y_test = train_test_split(data, targets, test_size=train_test_ratio, random_state=1)
+			print("     x_train: ", x_train.shape)
+			print("     x_test: ", x_test.shape)
+			print("     y_train: ", y_train.shape)
+			print("     y_test: ", y_test.shape)
+
+			# This is the baseline model
+			if self.classifier_select == "CNN":
+				print "Processing data..."
+				self.clf = CNN_raw_ef_model(num_ep, num_frc)
+				self.clf.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
+				self.fit(x_train, y_train)
+				probs = self.predict_proba(x_test)
+				preds = self.predict(x_test)
+				this_targets = y_test
+			elif self.classifier_select == "LS":
+				pass
+		return self.get_metrics(probs, preds, this_targets)
+		# return self.get_metrics(probs, preds, this_targets)
+
+
+	def cv_ssl_eval(self, data, targets, uns_data, uns_targets, outDir, folds=None, train_test_ratio=None, num_ep = 2, num_frc = None):
+		print "Model Evaluation ~!"
+		if self.k_d_train == "k":
+			print("******* K-fold Evaluating (semi-supervied learning model)")
 			print "    Fold number : " + str(folds)
 			skf = StratifiedKFold(folds)
 			probs = []
@@ -1263,57 +1371,230 @@ class CLF_Wrapper:
 				this_targets.extend(targets[test])
 				# loss, accuracy = self.clf.evaluate(data[test], targets[test], verbose=0)
 
-				# outDir = outDir + os.sep + "k_fold_accuracy_loss"
-				# if not os.path.exists(outDir):
-				# 	os.makedirs(outDir)
-				# print("outDir: ", outDir)
-				#
-				# print("     ** Plot accuracy: ")
-				# plt.plot(loss)
-				# plt.xlabel("Epochs")
-				# plt.ylabel("value")
-				# plt.savefig(os.path.join(outDir, "accuracy.png"), dpi=400)
-				# plt.close()
-				#
-				# print("     ** Plot loss: ")
-				# plt.plot(loss)
-				# plt.xlabel("Epochs")
-				# plt.ylabel("value")
-				# plt.savefig(os.path.join(outDir, "loss.png"), dpi=400)
-				# plt.close()
-
-
-		elif k_d_training == "d":
+		elif self.k_d_train == "d":
+			print("******* Direct-training Evaluating (semi-supervied learning model)")
 			print "    Training / Testing Ratio : " + str(train_test_ratio) + "/" + str(1-train_test_ratio)
-			# probs = []
-			# preds = []
-			# this_targets = []
 			x_train, x_test, y_train, y_test = train_test_split(data, targets, test_size=train_test_ratio, random_state=1)
 			print("     x_train: ", x_train.shape)
 			print("     x_test: ", x_test.shape)
 			print("     y_train: ", y_train.shape)
 			print("     y_test: ", y_test.shape)
-
 			print "Processing data..."
-			self.clf = CNN_raw_ef_model(num_ep, num_frc)
-			self.clf.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
-			self.fit(x_train, y_train)
-			probs = self.predict_proba(x_test)
-			preds = self.predict(x_test)
-			this_targets = y_test
+
+			## This is the semi-supervised model
+			if self.classifier_select == "CNN":
+				self.clf = CNN_raw_ef_model(num_ep, num_frc)
+				self.clf.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
+				self.fit(x_train, y_train)
+				probs = self.predict_proba(uns_data)
+				preds = self.predict(uns_data)
+				for i in range(2):
+					####################################
+					## Feature
+					####################################
+					print("## Direct-training Evaluating (ssl): ", i)
+					print("####################################")
+					print("## Feature")
+					print("####################################")
+					print("** uns_data: ", uns_data.shape)
+					size = int(math.ceil(uns_data.shape[0] * 0.1))
+					# Add at most the size of half of x_train
+					if size > x_train.shape[0]:
+						size = int(math.ceil(x_train.shape[0]/2))
+					print("** Selection size: ", size)
+
+					# data add 'uns_data_pos' and 'uns_data_neg'
+					selection_candid_pos = np.where(np.any(probs>0.99, axis=1))
+					selection_candid_neg = np.where(np.any(probs<0.01, axis=1))
+					selection_pos = np.random.choice(selection_candid_pos[0], size=size, replace=False)
+					selection_neg = np.random.choice(selection_candid_neg[0], size=size, replace=False)
+					selection = np.concatenate((selection_pos, selection_neg))
+					uns_data_pos_neg = uns_data[selection]
+					print("** uns_data_pos_neg: ", len(uns_data_pos_neg))
+					print("** x_train.shape (old): ", x_train.shape)
+					x_train = np.concatenate((x_train, uns_data_pos_neg))
+					print("** x_train.shape (new): ", x_train.shape)
+					# uns_data remove 'uns_data_pos' and 'uns_data_neg'
+					uns_data = np.delete(uns_data, selection, axis = 0)
+					print("** uns_data: ", len(uns_data))
+
+					####################################
+					## Targets
+					####################################
+					print("####################################")
+					print("## Targets")
+					print("####################################")
+					print("** uns_targets: ", len(uns_targets[uns_targets==-1]))
+					uns_targets = uns_targets.reshape((len(uns_targets), 1))
+					# targets add 'uns_targets_pos' and 'uns_targets_neg'
+					# Need to be labeled as positive
+					uns_targets[selection_pos] = 1
+					# Need to be labeled as negative
+					uns_targets[selection_neg] = 0
+					targets_pos_neg = uns_targets[uns_targets!=-1]
+					print("** targets_pos_neg: ", len(targets_pos_neg))
+					print("** y_train (old): ", len(y_train))
+					y_train = np.concatenate((y_train, targets_pos_neg))
+					print("** y_train (new): ", len(y_train))
+					# targets remove 'uns_targets_pos' and 'uns_targets_neg'
+					uns_targets = uns_targets[uns_targets==-1]
+					print("** uns_targets: ", uns_targets.shape)
+					print("\n")
+					self.fit(x_train, y_train)
+					probs = self.predict_proba(uns_data)
+					preds = self.predict(uns_data)
+
+				probs = self.predict_proba(x_test)
+				preds = self.predict(x_test)
+				# print("probs.shape: ", probs.shape)
+				# print("probs: ", probs)
+				# print("preds.shape: ", preds.shape)
+				# print("preds: ", preds)
+
+				this_targets = y_test
+
+			elif self.classifier_select == "LS":
+				# split train into labeled and unlabeled
+				x_train_lab, x_test_unlab, y_train_lab, y_test_unlab = train_test_split(x_train, y_train, test_size=0.50, random_state=1, stratify=y_train)
+
+				# define model
+				self.clf = LogisticRegression()
+				# fit model on labeled dataset
+				self.clf.fit(x_train_lab, y_train_lab)
+				# make predictions on hold out test set
+				yhat = self.clf.predict(x_test)
+				# calculate score for test set
+				score = accuracy_score(y_test, yhat)
+				# summarize score
+				print('Baseline Model Accuracy: %.3f' % (score*100))
+
+
+
+				# create the training dataset input
+				x_train_mixed = np.concatenate((x_train_lab, x_test_unlab))
+				# create "no label" for unlabeled data
+				nolabel = [-1 for _ in range(len(y_test_unlab))]
+				# recombine training dataset labels
+				y_train_mixed = np.concatenate((y_train_lab, nolabel))
+				# define model
+				self.clf = label_spreading_model()
+				# fit model on training dataset
+				self.clf.fit(x_train_mixed, y_train_mixed)
+				# make predictions on hold out test set
+				preds = self.clf.predict(x_test)
+				preds = preds.reshape((len(preds), 1))
+				probs = self.clf.predict_proba(x_test)
+				print("*** probs: ", probs)
+				
+
+
+				this_targets = y_test
+
+				print("probs.shape: ", probs.shape)
+				print("preds.shape: ", preds.shape)
+				# calculate score for test set
+				score = accuracy_score(y_test, yhat)
+				# summarize score
+				print('Label Spreading Accuracy: %.3f' % (score*100))
+
+
+
+				# get labels for entire training dataset data
+				tran_labels = self.clf.transduction_
+				# define supervised learning model
+				model2 = LogisticRegression()
+				# fit supervised learning model on entire training dataset
+				model2.fit(x_train_mixed, tran_labels)
+				# make predictions on hold out test set
+				yhat = model2.predict(x_test)
+				# calculate score for test set
+				score = accuracy_score(y_test, yhat)
+				# summarize score
+				print('Label Spreading + Logistics Regression Accuracy: %.3f' % (score*100))
+
+
+
+
+				# n_total_samples = x_all.shape[0]
+				# n_labeled_points = x_train.shape[0]
+				# print("* n_total_samples: ", n_total_samples)
+				# print("* n_labeled_points: ", n_labeled_points)
+				# indices = np.arange(n_total_samples)
+				# unlabeled_set = indices[n_labeled_points:]
+				# print("indices: ", indices)
+				# print("unlabeled_set: ", unlabeled_set)
+				#
+				# y_all_copy = np.copy(y_all)
+				# y_all_copy[unlabeled_set] = -1
+				#
+				#
+				# self.clf.fit(x_all, y_all_copy)
+				# predicted_labels = self.clf.transduction_[unlabeled_set]
+				# predicted_labels_cmp = self.clf.predict(x_all)[unlabeled_set]
+				#
+				# predicted_labels_cmp_pb = self.clf.predict_proba(x_all)[unlabeled_set]
+				# print("** predicted_labels    : ", predicted_labels)
+				# print("** predicted_labels_cmp: ", predicted_labels_cmp)
+				# print("** compare: ", predicted_labels == predicted_labels_cmp)
+				#
+				# # print("predicted_labels: ", predicted_labels)
+				# true_labels = y_all[unlabeled_set]
+				#
+				#
+				# cm = confusion_matrix(true_labels, predicted_labels, labels=self.clf.classes_)
+				#
+				# cm_cmp = confusion_matrix(true_labels, predicted_labels_cmp, labels=self.clf.classes_)
+				#
+				#
+				# print("Label Spreading model: %d labeled & %d unlabeled points (%d total)" %
+				#       (n_labeled_points, n_total_samples - n_labeled_points, n_total_samples))
+				#
+				# print(classification_report(true_labels, predicted_labels))
+				#
+				# print(classification_report(true_labels, predicted_labels_cmp))
+				#
+				#
+				# print("Confusion matrix")
+				# print(cm)
+				#
+				# print("Confusion matrix compare")
+				# print(cm_cmp)
 
 		return self.get_metrics(probs, preds, this_targets)
-		# return self.get_metrics(probs, preds, this_targets)
 
 
 
 
-	def cv_model_creation(self, data, targets, k_d_training="k", folds=None, train_test_ratio=None, num_ep = 2, num_frc = None):
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	def cv_model_creation(self, data, targets, uns_data, uns_targets, folds=None, train_test_ratio=None, num_ep = 2, num_frc = None):
 		print "Final Model Creation!"
-
-		if k_d_training == "k":
-			# Use all data & targets to train the model
+		##########################################
+		## This part is supervised learning
+		##########################################
+		if self.learning_selection == 'sl':
+			if self.k_d_train == "k":
+				print("******* K-fold Model Creation")
+			elif self.k_d_train == "d":
+				print("******* Direct-training Model Creation")
+			# Use all down-sampling data & targets to train the model
 			print "Processing data..."
+
 			self.clf = CNN_raw_ef_model(num_ep, num_frc)
 			self.clf.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
 			self.fit(data, targets)
@@ -1321,20 +1602,88 @@ class CLF_Wrapper:
 			preds = self.predict(data)
 			this_targets = targets
 
-		elif k_d_training == "d":
-			# Use all data & targets to train the model
+		##########################################
+		## This part is self-supervised learning
+		##########################################
+		elif self.learning_selection == 'ssl':
+			# data, targets, uns_data, uns_targets
+			# Use all down-sampling data & targets to train the model
+			data_original = np.copy(data)
+			targets_original = np.copy(targets)
+
 			print "Processing data..."
 			self.clf = CNN_raw_ef_model(num_ep, num_frc)
 			self.clf.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
 			self.fit(data, targets)
-			probs = self.predict_proba(data)
-			preds = self.predict(data)
-			this_targets = targets
+			probs = self.predict_proba(uns_data)
+			preds = self.predict(uns_data)
+
+			for i in range(2):
+				####################################
+				## Feature
+				####################################
+				print("## Direct-training creation (ssl): ", i)
+				print("####################################")
+				print("## Feature")
+				print("####################################")
+				print("** uns_data: ", uns_data.shape)
+				size = int(math.ceil(uns_data.shape[0] * 0.1))
+				if size > data.shape[0]:
+					size = int(math.ceil(data.shape[0]/2))
+				print("** Selection size: ", size)
+
+				# data add 'uns_data_pos' and 'uns_data_neg'
+				selection_candid_pos = np.where(np.any(probs>0.99, axis=1))
+				selection_candid_neg = np.where(np.any(probs<0.01, axis=1))
+				selection_pos = np.random.choice(selection_candid_pos[0], size=size, replace=False)
+				selection_neg = np.random.choice(selection_candid_neg[0], size=size, replace=False)
+				selection = np.concatenate((selection_pos, selection_neg))
+				uns_data_pos_neg = uns_data[selection]
+				print("** uns_data_pos_neg: ", len(uns_data_pos_neg))
+				print("** data.shape (old): ", data.shape)
+				data = np.concatenate((data, uns_data_pos_neg))
+				# print("** data.shape (original): ", data.shape)
+				print("** data.shape (new): ", data.shape)
+				# uns_data remove 'uns_data_pos' and 'uns_data_neg'
+				uns_data = np.delete(uns_data, selection, axis = 0)
+				print("** uns_data: ", len(uns_data))
+
+				####################################
+				## Targets
+				####################################
+				print("####################################")
+				print("## Targets")
+				print("####################################")
+				print("** uns_targets: ", len(uns_targets[uns_targets==-1]))
+				uns_targets = uns_targets.reshape((len(uns_targets), 1))
+				# targets add 'uns_targets_pos' and 'uns_targets_neg'
+				# Need to be labeled as positive
+				uns_targets[selection_pos] = 1
+				# Need to be labeled as negative
+				uns_targets[selection_neg] = 0
+				print("len(uns_targets[uns_targets!=-1]): ", len(uns_targets[uns_targets!=-1]))
+				targets_pos_neg = uns_targets[uns_targets!=-1]
+				print("** targets_pos_neg: ", len(targets_pos_neg))
+				print("** targets (old): ", len(targets))
+				targets = np.concatenate((targets, targets_pos_neg))
+				print("** targets (new): ", len(targets))
+				# targets remove 'uns_targets_pos' and 'uns_targets_neg'
+				uns_targets = uns_targets[uns_targets==-1]
+				print("** uns_targets: ", uns_targets.shape)
+				print("\n")
+
+				self.fit(data, targets)
+				probs = self.predict_proba(uns_data)
+				preds = self.predict(uns_data)
+
+			probs = self.predict_proba(data_original)
+			preds = self.predict(data_original)
+			this_targets = targets_original
 
 		# return self.get_metrics(probs, preds, this_targets, probs_all_pos_neg, preds_all_pos_neg, this_targets_all_pos_neg)
 		return self.get_metrics(probs, preds, this_targets)
 
-	def cv_model_all_pos_neg_eval(self, data, targets, k_d_training="k", folds=None, train_test_ratio=None):
+	def cv_model_all_pos_neg_eval(self, data, targets, folds=None, train_test_ratio=None):
 		print "Final Model Evaluation!"
 		probs = self.predict_proba(data)
 		preds = self.predict(data)

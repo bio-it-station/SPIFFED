@@ -74,13 +74,16 @@ def main():
 						default=1)
 	parser.add_argument("-E", "--frac_count", type = int,help="Number of fracrions a protein needs to be measured in. default = 2",
 						default=2)
-
 	parser.add_argument("-P", "--precalcualted_score_file", type = str,help="Path to precalulated scorefile to read scores from for faster rerunning of EPIC. default = None",
 						default="NONE")
 
 	########################
 	## New added argument ##
 	########################
+	# supervised and semi-supervised input condition:
+	parser.add_argument("--LEARNING_SELECTION", type = str, help="Values: sl, ssl", default="sl")
+
+
 	# k-fold or direct training:
 	parser.add_argument("--K_D_TRAIN", type = str, help="Values: d, k", default="d")
 	# fold_num
@@ -124,6 +127,7 @@ def main():
 	# POS_NEG_RATIO = input("Enter negative/positive ratio:")
 	# num_ep = 2
 	# num_frc = 27
+	LEARNING_SELECTION = args.LEARNING_SELECTION
 	K_D_TRAIN = args.K_D_TRAIN
 	FOLD_NUM = args.FOLD_NUM
 	if FOLD_NUM == 0:
@@ -132,6 +136,7 @@ def main():
 	POS_NEG_RATIO = args.POS_NEG_RATIO
 	NUM_EP = args.NUM_EP
 	NUM_FRC = args.NUM_FRC
+	print("  * LEARNING_SELECTION: ", LEARNING_SELECTION)
 	print("  * K_D_TRAIN: ", K_D_TRAIN)
 	print("  * FOLD_NUM: ", FOLD_NUM)
 	print("  * TRAIN_TEST_RATIO: ", TRAIN_TEST_RATIO)
@@ -149,11 +154,12 @@ def main():
 		print "Select at least one feature"
 		sys.exit()
 	elif args.feature_selection == "000000000":
+		# Local Pcc
 		this_scores = utils.get_fs_comb(args.feature_selection)
 		print "\t".join([fs.name for fs in this_scores])
- 	elif args.feature_selection == "000000001":
-		this_scores = utils.get_fs_comb(args.feature_selection)
-		print "\t".join([fs.name for fs in this_scores])
+ 	# elif args.feature_selection == "000000001":
+	# 	this_scores = utils.get_fs_comb(args.feature_selection)
+	# 	print "\t".join([fs.name for fs in this_scores])
 	else:
 		this_scores = utils.get_fs_comb(args.feature_selection)
 		print "\t".join([fs.name for fs in this_scores])
@@ -204,7 +210,6 @@ def main():
 	if 	len(gs_clusters)>0:
 		gs = utils.create_goldstandard(gs_clusters, args.taxid, foundprots, pos_neg_ratio = POS_NEG_RATIO)
 
-
 	output_dir = args.output_dir + os.sep + args.output_prefix
 
 	if not os.path.exists(output_dir):
@@ -223,7 +228,7 @@ def main():
 	## "Creating classifier"
 	##########################################
 	classifier_select = args.classifier
-	clf = CS.CLF_Wrapper(args.num_cores, classifier_select, num_ep=NUM_EP, num_frc=NUM_FRC, pos_neg_ratio = POS_NEG_RATIO)
+	clf = CS.CLF_Wrapper(args.num_cores, classifier_select, learning_selection=LEARNING_SELECTION, k_d_train=K_D_TRAIN, num_ep=NUM_EP, num_frc=NUM_FRC, pos_neg_ratio = POS_NEG_RATIO)
 	##########################################
 	## End of "Creating classifier"
 	##########################################
@@ -248,14 +253,21 @@ def main():
 	## "Balancing Positive & Negative" PPIs
 	##########################################
 	functionalData = ""
-	gs.positive = set(gs.positive & set(scoreCalc.ppiToIndex.keys()))
-	gs.negative = set(gs.negative & set(scoreCalc.ppiToIndex.keys()))
+	gs.positive = scoreCalc.positive
+	gs.negative = scoreCalc.negative
+	gs.unsure = scoreCalc.unsure
+	# gs.positive = set(gs.positive & set(scoreCalc.ppiToIndex.keys()))
+	# gs.negative = set(gs.negative & set(scoreCalc.ppiToIndex.keys()))
 	gs.all_positive = gs.positive
 	gs.all_negative = gs.negative
 	gs.rebalance()
 
 	print("len(gs.positive): ", len(gs.positive))
 	print("len(gs.negative): ", len(gs.negative))
+	print("len(gs.unsure): ", len(gs.unsure))
+
+	print("len(gs.all_positive): ", len(gs.all_positive))
+	print("len(gs.all_negative): ", len(gs.all_negative))
 	###############################################
 	## End of "Balancing Positive & Negative" PPIs
 	###############################################
@@ -272,15 +284,15 @@ def main():
 	print "Start benchmarking"
 
 	if args.mode == "EXP":
-		utils.cv_bench_clf(scoreCalc, clf, gs, output_dir, format="pdf", verbose=True, k_d_training = K_D_TRAIN, folds = FOLD_NUM, train_test_ratio = TRAIN_TEST_RATIO, num_ep = NUM_EP, num_frc = NUM_FRC)
+		utils.cv_bench_clf(scoreCalc, clf, gs, output_dir, learning_selection=LEARNING_SELECTION, format="pdf", verbose=True, folds = FOLD_NUM, train_test_ratio = TRAIN_TEST_RATIO, num_ep = NUM_EP, num_frc = NUM_FRC)
 
 	if args.mode == "COMB":
 		tmp_sc = copy.deepcopy(scoreCalc)
 		tmp_sc.add_fun_anno(functionalData)
-		utils.cv_bench_clf(tmp_sc, clf, gs, output_dir, format="pdf", verbose=True, k_d_training = K_D_TRAIN, folds = FOLD_NUM, train_test_ratio = TRAIN_TEST_RATIO, num_ep = NUM_EP, num_frc = NUM_FRC)
+		utils.cv_bench_clf(tmp_sc, clf, gs, output_dir, learning_selection=LEARNING_SELECTION, format="pdf", verbose=True, folds = FOLD_NUM, train_test_ratio = TRAIN_TEST_RATIO, num_ep = NUM_EP, num_frc = NUM_FRC)
 
 	if args.mode == "FA":
-		utils.cv_bench_clf(functionalData, clf, gs, output_dir, format="pdf", verbose=True, k_d_training = K_D_TRAIN, folds = FOLD_NUM, train_test_ratio = TRAIN_TEST_RATIO, num_ep = NUM_EP, num_frc = NUM_FRC)
+		utils.cv_bench_clf(functionalData, clf, gs, output_dir, learning_selection=LEARNING_SELECTION, format="pdf", verbose=True, folds = FOLD_NUM, train_test_ratio = TRAIN_TEST_RATIO, num_ep = NUM_EP, num_frc = NUM_FRC)
 	##########################################
 	## End of "EVALUATION"
 	##########################################
@@ -301,7 +313,7 @@ def main():
 	##############################################
 	## This part is "MODEL TRAINING & PREDICTION"
 	##############################################
-	network = utils.make_predictions(scoreCalc, args.mode, clf, gs, output_dir, fun_anno=functionalData, verbose = False, k_d_training = K_D_TRAIN, folds = FOLD_NUM, train_test_ratio = TRAIN_TEST_RATIO)
+	network = utils.make_predictions(scoreCalc, args.mode, clf, gs, output_dir, fun_anno=functionalData, verbose = False, folds = FOLD_NUM, train_test_ratio = TRAIN_TEST_RATIO)
 
 	# Predict protein interaction
 	outFH = open("%s.pred.txt" % (output_dir), "w")

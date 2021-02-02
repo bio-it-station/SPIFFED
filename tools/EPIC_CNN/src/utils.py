@@ -118,81 +118,65 @@ def bench_by_PPI_clf(num_folds, scoreCalc, train_gold_complexes, clf):
 
 
 
-def cv_bench_clf(scoreCalc, clf, gs, outDir, verbose=False, format="pdf", k_d_training="k", folds=None, train_test_ratio=None, num_ep = 2, num_frc = None):
+def cv_bench_clf(scoreCalc, clf, gs, outDir, verbose=False, learning_selection = 'sl', format="pdf", folds=None, train_test_ratio=None, num_ep = 2, num_frc = None):
 # def cv_bench_clf(scoreCalc, clf, gs, outDir, verbose=False, format="pdf", folds = 5):
-	_, data, targets, _all, data_all, targets_all = scoreCalc.toSklearnData(gs)
+	_, data, targets, unsure_data, unsure_targets = scoreCalc.toSklearnData(gs)
 
 	print("data: ", data.shape)
 	print("data.shape: ", data.shape)
 	print("targets.shape: ", targets.shape)
 
-	print("data_all: ", data_all.shape)
-	print("data_all.shape: ", data_all.shape)
-	print("targets_all.shape: ", targets_all.shape)
+	#######################################
+	## "Data reshape"
+	#######################################
+	if clf.classifier_select == "CNN":
+		data = np.array(data)
+		num_samples, num_scores, num_frc = data.shape
+		print("data: ", data.shape)
+		data = data.reshape((num_samples, num_scores, num_frc, 1))
+		print("data.shape: ", data.shape)
+		print(data[0])
+		print("targets.shape: ", targets.shape)
+		print(targets)
 
-	data = np.array(data)
-	num_samples, num_scores, num_frc = data.shape
-	print("data: ", data.shape)
-	data = data.reshape((num_samples, num_scores, num_frc, 1))
-	print("data.shape: ", data.shape)
-	print(data[0])
-	print("targets.shape: ", targets.shape)
-	print(targets)
+		unsure_data = np.array(unsure_data)
+		num_samples_uns, num_scores_uns, num_frc_uns = unsure_data.shape
+		print("unsure_data: ", unsure_data.shape)
+		unsure_data = unsure_data.reshape((num_samples_uns, num_scores_uns, num_frc_uns, 1))
+		print("unsure_data.shape: ", unsure_data.shape)
+		num_ppi_uns, num_ep_uns, num_frc_uns, tmp = unsure_data.shape
+	elif clf.classifier_select == "LS":
+		data = np.array(data)
+		num_samples, num_scores, num_frc = data.shape
+		print("data: ", data.shape)
+		data = data.reshape((num_samples, num_scores*num_frc))
+		print("data.shape: ", data.shape)
+		print(data[0])
+		print("targets.shape: ", targets.shape)
+		print(targets)
 
-	this_targets, preds, probs, precision, recall, fmeasure, auc_pr, auc_roc, curve_pr, curve_roc = clf.cv_eval(data, targets, outDir, k_d_training, folds, train_test_ratio, num_ep, num_frc)
+		unsure_data = np.array(unsure_data)
+		num_samples_uns, num_scores_uns, num_frc_uns = unsure_data.shape
+		print("unsure_data: ", unsure_data.shape)
+		unsure_data = unsure_data.reshape((num_samples_uns, num_scores_uns*num_frc_uns))
+		print("unsure_data.shape: ", unsure_data.shape)
+	#######################################
+	## End of "Data reshape"
+	#######################################
 
-	outDir_all_pos_neg_testing = outDir + os.sep + "all_pos_neg_testing"
-	eval_plotting(outDir_all_pos_neg_testing, this_targets, preds, probs, precision, recall, fmeasure, auc_pr, auc_roc, curve_pr, curve_roc)
 
+	# ## This is the evaluation for baseline model
+	# this_targets, preds, probs, precision, recall, fmeasure, auc_pr, auc_roc, curve_pr, curve_roc = clf.cv_eval(data, targets, unsure_data, unsure_targets, outDir, folds, train_test_ratio, num_ep, num_frc)
+	# outDir_all_pos_neg_testing = outDir + os.sep + "all_pos_neg_testing"
+	# eval_plotting(outDir_all_pos_neg_testing, this_targets, preds, probs, precision, recall, fmeasure, auc_pr, auc_roc, curve_pr, curve_roc)
 
+	if learning_selection == 'ssl':
+		## This is the evaluation for semi-supervised learning
+		this_targets, preds, probs, precision, recall, fmeasure, auc_pr, auc_roc, curve_pr, curve_roc = clf.cv_ssl_eval(data, targets, unsure_data, unsure_targets, outDir, folds, train_test_ratio, num_ep, num_frc)
+		outDir_all_pos_neg_testing = outDir + os.sep + "ssl_all_pos_neg_testing"
+		eval_plotting(outDir_all_pos_neg_testing, this_targets, preds, probs, precision, recall, fmeasure, auc_pr, auc_roc, curve_pr, curve_roc)
 
-	# plotCurves([("", curve_roc)], outDir + ".roc." + format, "False Positive rate", "True Positive Rate")
-	# recall_vals, precision_vals, threshold = curve_pr
-	# plotCurves([("", (precision_vals, recall_vals))], outDir + ".pr." + format, "Recall", "Precision")
 	rownames = ["Precision", "Recall", "F-Measure", "AUC PR", "AUC ROC"]
-	# threshold = np.append(threshold, 1)
-	# plotCurves([("Precision", (precision_vals, threshold)), ("Recall", (recall_vals, threshold))], outDir + ".cutoff." + format, "Cutoff", "Evaluation metric score")
-	# plotCurves([("", curve_roc)], outDir + ".roc." + format, "False Positive rate", "True Positive Rate")
-	# recall_vals, precision_vals, threshold = curve_pr
-	# plotCurves([("", (precision_vals, recall_vals))], outDir + ".pr." + format, "Recall", "Precision")
-	# rownames = ["Precision", "Recall", "F-Measure", "AUC PR", "AUC ROC"]
-	# threshold = np.append(threshold, 1)
-	# plotCurves([("Precision", (precision_vals, threshold)), ("Recall", (recall_vals, threshold))], outDir + ".cutoff." + format, "Cutoff", "Evaluation metric score")
-	#
-	# # if not os.path.exists(outDir + "/Cross_Validation"):
-	# # 	os.makedirs(outDir + "/Cross_Validation")
-	#
-	# if not os.path.exists(outDir):
-	# 	os.makedirs(outDir)
-	# print("     ** Plot confusion_matrix: ")
-	# skplt.metrics.plot_confusion_matrix(this_targets, preds, normalize=False)
-	# plt.savefig(os.path.join(outDir, "confusion_matrix.png"), dpi=400)
-	# plt.close()
-	#
-	# print("     ** Plot normalized confusion_matrix: ")
-	# skplt.metrics.plot_confusion_matrix(this_targets, preds, normalize=True)
-	# plt.savefig(os.path.join(outDir, "confusion_matrix_normalized.png"), dpi=400)
-	# plt.close()
-	#
-	# print("     ** Plot curve_roc: ")
-	# # print("probs: ", probs)
-	# probs = np.array(probs).T[0]
-	# # print("probs: ", probs)
-	# probs_concat = np.vstack((1-probs, probs)).T
-	# # print("probs_concat: ", probs_concat)
-	# skplt.metrics.plot_roc(this_targets, probs_concat, classes_to_plot = [1], plot_micro=False, plot_macro=False)
-	# plt.savefig(os.path.join(outDir, "curve_roc.png"), dpi=400)
-	# plt.close()
-	#
-	# print("     ** Plot curve_pr: ")
-	# skplt.metrics.plot_precision_recall(this_targets, probs_concat, classes_to_plot = [1], plot_micro=False)
-	# plt.savefig(os.path.join(outDir, "curve_pr.png"), dpi=400)
-	# plt.close()
-
-	#if verbose:
-		#val_scores = [precision, recall, fmeasure, auc_pr, auc_roc]
-		#for i in range(len(rownames)):
-			#print str(rownames[i]) + "\t" + str(val_scores[i])
 	return rownames, [precision, recall, fmeasure, auc_pr, auc_roc]
 
 def bench_clf(scoreCalc, train, eval, clf, outDir, verbose=False, format = "pdf"):
@@ -262,34 +246,48 @@ def plotCurves(curves, outF, xlab, ylab):
 	plt.close()
 
 # @author Florian Goebels
-def predictInteractions(scoreCalc, clf, gs, outDir, to_train=True, verbose= True, k_d_training = "k", folds = 5, train_test_ratio = None):
-	ids_train, data_train, targets_train, _all, data_all, targets_all = scoreCalc.toSklearnData(gs)
+def predictInteractions(scoreCalc, clf, gs, outDir, to_train=True, verbose= True, folds = 5, train_test_ratio = None):
 
+	_, data, targets, unsure_data, unsure_targets = scoreCalc.toSklearnData(gs)
+	_all, data_all, targets_all, unsure_data, unsure_targets = scoreCalc.toSklearnDataAll(gs)
 
-	# if to_train: clf.fit(data_train, targets_train)
+	# if to_train: clf.fit(data, targets)
 
-	# num_features = data_train.shape[1]
-
-	data_train = np.array(data_train)
-	num_samples, num_scores, num_frc = data_train.shape
-	print("data_train: ", data_train.shape)
-	data_train = data_train.reshape((num_samples, num_scores, num_frc, 1))
-	print("data_train.shape: ", data_train.shape)
-	num_ppi, num_ep, num_frc, tmp = data_train.shape
+	# num_features = data.shape[1]
+	##########################################
+	## "Change data shape"
+	##########################################
+	data = np.array(data)
+	num_samples, num_scores, num_frc = data.shape
+	print("data: ", data.shape)
+	data = data.reshape((num_samples, num_scores, num_frc, 1))
+	print("data.shape: ", data.shape)
+	num_ppi, num_ep, num_frc, tmp = data.shape
 
 	data_all = np.array(data_all)
 	num_samples_all, num_scores_all, num_frc_all = data_all.shape
-	print("data_train: ", data_all.shape)
+	print("data: ", data_all.shape)
 	data_all = data_all.reshape((num_samples_all, num_scores_all, num_frc_all, 1))
 	print("data_all.shape: ", data_all.shape)
 	num_ppi_all, num_ep_all, num_frc_all, tmp = data_all.shape
 
-	this_targets, preds, probs, precision, recall, fmeasure, auc_pr, auc_roc, curve_pr, curve_roc = clf.cv_model_creation(data_train, targets_train, k_d_training, folds, train_test_ratio, num_ep, num_frc)
+
+	unsure_data = np.array(unsure_data)
+	num_samples_uns, num_scores_uns, num_frc_uns = unsure_data.shape
+	print("unsure_data: ", unsure_data.shape)
+	unsure_data = unsure_data.reshape((num_samples_uns, num_scores_uns, num_frc_uns, 1))
+	print("unsure_data.shape: ", unsure_data.shape)
+	num_ppi_uns, num_ep_uns, num_frc_uns, tmp = unsure_data.shape
+	##########################################
+	## End of "Change data shape"
+	##########################################
+
+	this_targets, preds, probs, precision, recall, fmeasure, auc_pr, auc_roc, curve_pr, curve_roc = clf.cv_model_creation(data, targets, unsure_data, unsure_targets, folds, train_test_ratio, num_ep, num_frc)
 
 	outDir_all_pos_neg_train = outDir + os.sep + "all_pos_neg_training"
 	eval_plotting(outDir_all_pos_neg_train, this_targets, preds, probs, precision, recall, fmeasure, auc_pr, auc_roc, curve_pr, curve_roc)
 
-	this_targets, preds, probs, precision, recall, fmeasure, auc_pr, auc_roc, curve_pr, curve_roc = clf.cv_model_all_pos_neg_eval(data_all, targets_all, k_d_training, folds, train_test_ratio)
+	this_targets, preds, probs, precision, recall, fmeasure, auc_pr, auc_roc, curve_pr, curve_roc = clf.cv_model_all_pos_neg_eval(data_all, targets_all, folds, train_test_ratio)
 
 	outDir_all_pos_neg = outDir + os.sep + "all_pos_neg"
 	eval_plotting(outDir_all_pos_neg, this_targets, preds, probs, precision, recall, fmeasure, auc_pr, auc_roc, curve_pr, curve_roc)
@@ -369,7 +367,7 @@ def get_FA_data(anno_source, taxid, file="", datadir = ""):
 		print "EPIC only support GeneMane, STRING, and flat file input please use the followign tags for anno_source GM, STRING, FILE. Returning empty string object."
 	return functionalData
 
-def make_predictions(score_calc, mode, clf, gs, output_dir, fun_anno="", verbose = False, k_d_training = "k", folds = 5, train_test_ratio = None):
+def make_predictions(score_calc, mode, clf, gs, output_dir, fun_anno="", verbose = False, folds = 5, train_test_ratio = None):
 	mode = mode.upper()
 
 	def get_edges_from_network(network):
@@ -381,14 +379,14 @@ def make_predictions(score_calc, mode, clf, gs, output_dir, fun_anno="", verbose
 
 	networks = []
 	# predicts using experiment only
-	if mode == "EXP" or mode == "BR": networks.append(predictInteractions(score_calc, clf, gs, output_dir, True, verbose, k_d_training, folds, train_test_ratio))
+	if mode == "EXP" or mode == "BR": networks.append(predictInteractions(score_calc, clf, gs, output_dir, True, verbose, folds, train_test_ratio))
 	#predicts using fun_anno only
 	if mode == "FA"or mode == "BR":
 		if fun_anno=="":
 			# TODO make illigal argument error
 			print "if using only functional annotation for prediction functional annotation (fun_anno param != "") must not be empty"
 			sys.exit()
-		networks.append(predictInteractions(score_calc, clf, gs, output_dir, True, verbose, k_d_training, folds, train_test_ratio))
+		networks.append(predictInteractions(score_calc, clf, gs, output_dir, True, verbose, folds, train_test_ratio))
 
 	#predict using both functional annotation and exp
 	if mode == "COMB" or mode == "BR":
@@ -396,7 +394,7 @@ def make_predictions(score_calc, mode, clf, gs, output_dir, fun_anno="", verbose
 		print tmp_score_calc.scores.shape
 		tmp_score_calc.add_fun_anno(fun_anno)
 		print tmp_score_calc.scores.shape
-		networks.append(predictInteractions(score_calc, clf, gs, output_dir, True, verbose, k_d_training, folds, train_test_ratio))
+		networks.append(predictInteractions(score_calc, clf, gs, output_dir, True, verbose, folds, train_test_ratio))
 
 	# return error when no networks is predicted
 	if len(networks) == 0:
@@ -690,7 +688,7 @@ def stability_evaluation(n_fold, all_gs, scoreCalc, clf, output_dir, mode, anno_
 
 
 		# Predict protein interaction based on n_fold cross validation
-		# network = make_predictions(scoreCalc, "exp", clf, train, output_dir, fun_anno="", verbose = False, k_d_training, folds, train_test_ratio)
+		# network = make_predictions(scoreCalc, "exp", clf, train, output_dir, fun_anno="", verbose = False, folds, train_test_ratio)
 		network = make_predictions(scoreCalc, "exp", clf, train, output_dir, fun_anno="", verbose = False)
 
 		# need to write the network into a file for later-on complexes prediction.

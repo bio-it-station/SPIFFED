@@ -25,7 +25,7 @@ class Goldstandard_from_Complexes():
 		self.complexes = Clusters(False)
 		self.name = name
 		self.ratio = ratio
-		self.positive, self.negative = set([]), set([])
+		self.positive, self.negative, self.unsure = set([]), set([]), set([])
 		self.all_positive, self.all_negative = set([]), set([])
 
 	# get all proteins from Goldstandard_from_Complexes object27
@@ -777,6 +777,7 @@ class Clusters():
 
 				else:
 					negative.add(edge)
+		# print("Positive: ", positive)
 		return positive, negative
 
 	def overlap(self, a, b):
