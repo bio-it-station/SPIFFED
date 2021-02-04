@@ -7,6 +7,46 @@ Improve the current best elution profile-based protein complexes inference tool 
 
 ## Installation
 
+To install EPIC, first make sure you have Python 2.7 and scikit-learn package installed. Also one correlation score ("wcc") utilizes R to perform computation, thus R and rpy2 should be installed in your computer too.
+
+We recommend using the conda environemnt to run EPIC and install associated libraries. Anaconda/Miniconda can be downloaded from "https://conda.io/docs/user-guide/install/download.html#anaconda-or-miniconda"
+
+Create an Conda environment: type "`conda create -n EPIC python=2.7 anaconda`"
+
+If the system says "conda: command not found", you probably need to type "export PATH=~/anaconda2/bin:$PATH" first
+Activate your Anaconda EPIC environment: type "source activate EPIC"
+
+Install "rpy2": type "`conda install rpy2`"
+
+Install "requests": type "`conda install requests`"
+
+Install "scikit-learn": type "`conda install scikit-learn`"
+
+Install "beautifulsoup4": type "`conda install beautifulsoup4`"
+
+Install "mock": type "`conda install mock`"
+
+Install "R": type "`conda install -c r r`"
+
+Install "kohonen": type "`conda install -c r r-kohonen`"
+
+Install "numpy": type "`pip install numpy`"
+
+If this step requires you to install "msgpack" or "argparse", just type "`pip install msgpack`" and "`pip install argparse`"
+
+The package "wccsom" can be downloaded from https://cran.r-project.org/src/contrib/Archive/wccsom/wccsom_1.2.11.tar.gz
+
+If the directory containing this package is "/wccsom_directory", go to r (type: R in command line), type: install.packages('/wccsom_directory/wccsom_1.2.11.tar.gz', type = 'source'). This will install the "wccsom" package.
+
+(sometimes, you need to type: `install.packages('class')` and then type: `install.packages('kohonen')` in R before doing the step above.)
+
+Install "matplotlib": type "`python -mpip install -U matplotlib`"
+
+In case you missed any packages, you usaually can easily type "conda install missing_package_name" to install it...
+
+First, open terminal and go to your desired directory. Then git clone at your desired directory:
+`git clone https://github.com/Kuanhao-Chao/EPPC`
+
 ---
 
 ## Run EPPC
@@ -51,12 +91,21 @@ Don't worry if the above command looks a bit scary. In the next section, we deta
 
 14. `--NUM_FRC` <b>`number_of_fractions`</b>:: This parameter stores the number of fractions in the elution profile file. (default: <b>`27`</b>)
 
-## Supervised learning: EPIC scores + random Forest (EPIC scores + RF)
+---
 
-## Supervised Learning: raw inputs + convolutional neural networks (Raw + CNN)
+## EPPC Command Examples
 
-## Semi-supervised learning: raw inputs + convolutional neural networks (Raw + CNN)
+* Supervised learning: EPIC scores + random Forest (EPIC scores + RF)
 
-## Semi-supervised learning: raw inputs + label spreading (Raw + LS)
+
+* Supervised Learning: raw inputs + convolutional neural networks (Raw + CNN)
+
+
+* Semi-supervised learning: raw inputs + convolutional neural networks (Raw + CNN)
+
+
+* Semi-supervised learning: raw inputs + label spreading (Raw + LS)
+
+---
 
 ## Multiple 
