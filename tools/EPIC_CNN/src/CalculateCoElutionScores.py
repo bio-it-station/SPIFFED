@@ -1405,14 +1405,17 @@ class CLF_Wrapper:
 
 					# data add 'uns_data_pos' and 'uns_data_neg'
 					selection_candid_pos = np.where(np.any(probs>0.99, axis=1))
-					selection_candid_neg = np.where(np.any(probs<0.01, axis=1))
+					selection_candid_neg = np.where(np.any(probs<0.05, axis=1))
 
 					pos_size = size
-					neg_size = size
-					if pos_size > selection_candid_pos[0]:
-						size = selection_candid_pos[0]
-					if neg_size > selection_candid_neg[0]:
-						size = selection_candid_neg[0]
+					neg_size = size*5
+					if pos_size > len(selection_candid_pos[0]):
+						size = len(selection_candid_pos[0])
+					if neg_size > len(selection_candid_neg[0]):
+						size = len(selection_candid_neg[0])
+
+					print("** pos_size: ", pos_size)
+					print("** neg_size: ", neg_size)
 
 					selection_pos = np.random.choice(selection_candid_pos[0], size=pos_size, replace=False)
 					selection_neg = np.random.choice(selection_candid_neg[0], size=neg_size, replace=False)
@@ -1589,9 +1592,19 @@ class CLF_Wrapper:
 
 					# data add 'uns_data_pos' and 'uns_data_neg'
 					selection_candid_pos = np.where(np.any(probs>0.99, axis=1))
-					selection_candid_neg = np.where(np.any(probs<0.01, axis=1))
-					selection_pos = np.random.choice(selection_candid_pos[0], size=size, replace=False)
-					selection_neg = np.random.choice(selection_candid_neg[0], size=size, replace=False)
+					selection_candid_neg = np.where(np.any(probs<0.05, axis=1))
+					pos_size = size
+					neg_size = size*5
+					if pos_size > len(selection_candid_pos[0]):
+						size = len(selection_candid_pos[0])
+					if neg_size > len(selection_candid_neg[0]):
+						size = len(selection_candid_neg[0])
+
+					print("** pos_size: ", pos_size)
+					print("** neg_size: ", neg_size)
+
+					selection_pos = np.random.choice(selection_candid_pos[0], size=pos_size, replace=False)
+					selection_neg = np.random.choice(selection_candid_neg[0], size=neg_size, replace=False)
 					selection = np.concatenate((selection_pos, selection_neg))
 					uns_data_pos_neg = uns_data[selection]
 					print("** uns_data_pos_neg: ", len(uns_data_pos_neg))
