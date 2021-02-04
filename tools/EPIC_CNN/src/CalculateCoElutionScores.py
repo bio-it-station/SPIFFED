@@ -1406,8 +1406,16 @@ class CLF_Wrapper:
 					# data add 'uns_data_pos' and 'uns_data_neg'
 					selection_candid_pos = np.where(np.any(probs>0.99, axis=1))
 					selection_candid_neg = np.where(np.any(probs<0.01, axis=1))
-					selection_pos = np.random.choice(selection_candid_pos[0], size=size, replace=False)
-					selection_neg = np.random.choice(selection_candid_neg[0], size=size, replace=False)
+
+					pos_size = size
+					neg_size = size
+					if pos_size > selection_candid_pos[0]:
+						size = selection_candid_pos[0]
+					if neg_size > selection_candid_neg[0]:
+						size = selection_candid_neg[0]
+
+					selection_pos = np.random.choice(selection_candid_pos[0], size=pos_size, replace=False)
+					selection_neg = np.random.choice(selection_candid_neg[0], size=neg_size, replace=False)
 					selection = np.concatenate((selection_pos, selection_neg))
 					uns_data_pos_neg = uns_data[selection]
 					print("** uns_data_pos_neg: ", len(uns_data_pos_neg))
@@ -1484,16 +1492,11 @@ class CLF_Wrapper:
 				preds = self.clf.predict(x_test)
 				preds = preds.reshape((len(preds), 1))
 				probs = self.clf.predict_proba(x_test)
-				print("*** probs: ", probs)
-				
-
-
+				probs = probs[np.arange(len(probs)), (probs[:,0] < probs[:, 1]).astype(int)]
+				probs = probs.reshape((len(probs), 1))
 				this_targets = y_test
-
-				print("probs.shape: ", probs.shape)
-				print("preds.shape: ", preds.shape)
 				# calculate score for test set
-				score = accuracy_score(y_test, yhat)
+				score = accuracy_score(y_test, preds)
 				# summarize score
 				print('Label Spreading Accuracy: %.3f' % (score*100))
 
@@ -1511,55 +1514,6 @@ class CLF_Wrapper:
 				score = accuracy_score(y_test, yhat)
 				# summarize score
 				print('Label Spreading + Logistics Regression Accuracy: %.3f' % (score*100))
-
-
-
-
-				# n_total_samples = x_all.shape[0]
-				# n_labeled_points = x_train.shape[0]
-				# print("* n_total_samples: ", n_total_samples)
-				# print("* n_labeled_points: ", n_labeled_points)
-				# indices = np.arange(n_total_samples)
-				# unlabeled_set = indices[n_labeled_points:]
-				# print("indices: ", indices)
-				# print("unlabeled_set: ", unlabeled_set)
-				#
-				# y_all_copy = np.copy(y_all)
-				# y_all_copy[unlabeled_set] = -1
-				#
-				#
-				# self.clf.fit(x_all, y_all_copy)
-				# predicted_labels = self.clf.transduction_[unlabeled_set]
-				# predicted_labels_cmp = self.clf.predict(x_all)[unlabeled_set]
-				#
-				# predicted_labels_cmp_pb = self.clf.predict_proba(x_all)[unlabeled_set]
-				# print("** predicted_labels    : ", predicted_labels)
-				# print("** predicted_labels_cmp: ", predicted_labels_cmp)
-				# print("** compare: ", predicted_labels == predicted_labels_cmp)
-				#
-				# # print("predicted_labels: ", predicted_labels)
-				# true_labels = y_all[unlabeled_set]
-				#
-				#
-				# cm = confusion_matrix(true_labels, predicted_labels, labels=self.clf.classes_)
-				#
-				# cm_cmp = confusion_matrix(true_labels, predicted_labels_cmp, labels=self.clf.classes_)
-				#
-				#
-				# print("Label Spreading model: %d labeled & %d unlabeled points (%d total)" %
-				#       (n_labeled_points, n_total_samples - n_labeled_points, n_total_samples))
-				#
-				# print(classification_report(true_labels, predicted_labels))
-				#
-				# print(classification_report(true_labels, predicted_labels_cmp))
-				#
-				#
-				# print("Confusion matrix")
-				# print(cm)
-				#
-				# print("Confusion matrix compare")
-				# print(cm_cmp)
-
 		return self.get_metrics(probs, preds, this_targets)
 
 
@@ -1606,93 +1560,133 @@ class CLF_Wrapper:
 		## This part is self-supervised learning
 		##########################################
 		elif self.learning_selection == 'ssl':
-			# data, targets, uns_data, uns_targets
-			# Use all down-sampling data & targets to train the model
-			data_original = np.copy(data)
-			targets_original = np.copy(targets)
+			if self.classifier_select == "CNN":
+				# data, targets, uns_data, uns_targets
+				# Use all down-sampling data & targets to train the model
+				data_original = np.copy(data)
+				targets_original = np.copy(targets)
 
-			print "Processing data..."
-			self.clf = CNN_raw_ef_model(num_ep, num_frc)
-			self.clf.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
-			self.fit(data, targets)
-			probs = self.predict_proba(uns_data)
-			preds = self.predict(uns_data)
-
-			for i in range(2):
-				####################################
-				## Feature
-				####################################
-				print("## Direct-training creation (ssl): ", i)
-				print("####################################")
-				print("## Feature")
-				print("####################################")
-				print("** uns_data: ", uns_data.shape)
-				size = int(math.ceil(uns_data.shape[0] * 0.1))
-				if size > data.shape[0]:
-					size = int(math.ceil(data.shape[0]/2))
-				print("** Selection size: ", size)
-
-				# data add 'uns_data_pos' and 'uns_data_neg'
-				selection_candid_pos = np.where(np.any(probs>0.99, axis=1))
-				selection_candid_neg = np.where(np.any(probs<0.01, axis=1))
-				selection_pos = np.random.choice(selection_candid_pos[0], size=size, replace=False)
-				selection_neg = np.random.choice(selection_candid_neg[0], size=size, replace=False)
-				selection = np.concatenate((selection_pos, selection_neg))
-				uns_data_pos_neg = uns_data[selection]
-				print("** uns_data_pos_neg: ", len(uns_data_pos_neg))
-				print("** data.shape (old): ", data.shape)
-				data = np.concatenate((data, uns_data_pos_neg))
-				# print("** data.shape (original): ", data.shape)
-				print("** data.shape (new): ", data.shape)
-				# uns_data remove 'uns_data_pos' and 'uns_data_neg'
-				uns_data = np.delete(uns_data, selection, axis = 0)
-				print("** uns_data: ", len(uns_data))
-
-				####################################
-				## Targets
-				####################################
-				print("####################################")
-				print("## Targets")
-				print("####################################")
-				print("** uns_targets: ", len(uns_targets[uns_targets==-1]))
-				uns_targets = uns_targets.reshape((len(uns_targets), 1))
-				# targets add 'uns_targets_pos' and 'uns_targets_neg'
-				# Need to be labeled as positive
-				uns_targets[selection_pos] = 1
-				# Need to be labeled as negative
-				uns_targets[selection_neg] = 0
-				print("len(uns_targets[uns_targets!=-1]): ", len(uns_targets[uns_targets!=-1]))
-				targets_pos_neg = uns_targets[uns_targets!=-1]
-				print("** targets_pos_neg: ", len(targets_pos_neg))
-				print("** targets (old): ", len(targets))
-				targets = np.concatenate((targets, targets_pos_neg))
-				print("** targets (new): ", len(targets))
-				# targets remove 'uns_targets_pos' and 'uns_targets_neg'
-				uns_targets = uns_targets[uns_targets==-1]
-				print("** uns_targets: ", uns_targets.shape)
-				print("\n")
-
+				print "Processing data..."
+				self.clf = CNN_raw_ef_model(num_ep, num_frc)
+				self.clf.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
 				self.fit(data, targets)
 				probs = self.predict_proba(uns_data)
 				preds = self.predict(uns_data)
 
-			probs = self.predict_proba(data_original)
-			preds = self.predict(data_original)
-			this_targets = targets_original
+				for i in range(2):
+					####################################
+					## Feature
+					####################################
+					print("## Direct-training creation (ssl): ", i)
+					print("####################################")
+					print("## Feature")
+					print("####################################")
+					print("** uns_data: ", uns_data.shape)
+					size = int(math.ceil(uns_data.shape[0] * 0.1))
+					if size > data.shape[0]:
+						size = int(math.ceil(data.shape[0]/2))
+					print("** Selection size: ", size)
 
+					# data add 'uns_data_pos' and 'uns_data_neg'
+					selection_candid_pos = np.where(np.any(probs>0.99, axis=1))
+					selection_candid_neg = np.where(np.any(probs<0.01, axis=1))
+					selection_pos = np.random.choice(selection_candid_pos[0], size=size, replace=False)
+					selection_neg = np.random.choice(selection_candid_neg[0], size=size, replace=False)
+					selection = np.concatenate((selection_pos, selection_neg))
+					uns_data_pos_neg = uns_data[selection]
+					print("** uns_data_pos_neg: ", len(uns_data_pos_neg))
+					print("** data.shape (old): ", data.shape)
+					data = np.concatenate((data, uns_data_pos_neg))
+					# print("** data.shape (original): ", data.shape)
+					print("** data.shape (new): ", data.shape)
+					# uns_data remove 'uns_data_pos' and 'uns_data_neg'
+					uns_data = np.delete(uns_data, selection, axis = 0)
+					print("** uns_data: ", len(uns_data))
+
+					####################################
+					## Targets
+					####################################
+					print("####################################")
+					print("## Targets")
+					print("####################################")
+					print("** uns_targets: ", len(uns_targets[uns_targets==-1]))
+					uns_targets = uns_targets.reshape((len(uns_targets), 1))
+					# targets add 'uns_targets_pos' and 'uns_targets_neg'
+					# Need to be labeled as positive
+					uns_targets[selection_pos] = 1
+					# Need to be labeled as negative
+					uns_targets[selection_neg] = 0
+					print("len(uns_targets[uns_targets!=-1]): ", len(uns_targets[uns_targets!=-1]))
+					targets_pos_neg = uns_targets[uns_targets!=-1]
+					print("** targets_pos_neg: ", len(targets_pos_neg))
+					print("** targets (old): ", len(targets))
+					targets = np.concatenate((targets, targets_pos_neg))
+					print("** targets (new): ", len(targets))
+					# targets remove 'uns_targets_pos' and 'uns_targets_neg'
+					uns_targets = uns_targets[uns_targets==-1]
+					print("** uns_targets: ", uns_targets.shape)
+					print("\n")
+
+					self.fit(data, targets)
+					probs = self.predict_proba(uns_data)
+					preds = self.predict(uns_data)
+
+				probs = self.predict_proba(data_original)
+				preds = self.predict(data_original)
+				this_targets = targets_original
+			elif self.classifier_select == "LS":
+				data_size = data.shape[0]
+				uns_data_size = uns_data.shape[0]
+				select_size = data_size*5
+				if select_size > uns_data_size:
+					select_size = uns_data_size
+				print("** data_size: ", data_size)
+				print("** uns_data_size: ", uns_data_size)
+				print("** select_size: ", select_size)
+				random_indices = np.random.choice(uns_data_size, size=select_size, replace=False)
+				uns_data_select = uns_data[random_indices, :]
+				print("** uns_data_select.shape: ", uns_data_select.shape)
+
+
+				# create the training dataset input
+				data_mixed = np.concatenate((data, uns_data_select))
+				# create "no label" for unlabeled data
+				nolabel = [-1 for _ in range(uns_data_select.shape[0])]
+				# recombine training dataset labels
+				targets_mixed = np.concatenate((targets, nolabel))
+				# define model
+				self.clf = label_spreading_model()
+				# fit model on training dataset
+				self.clf.fit(data_mixed, targets_mixed)
+				# make predictions on hold out test set
+				preds = self.clf.predict(data)
+				preds = preds.reshape((len(preds), 1))
+				probs = self.clf.predict_proba(data)
+				probs = probs[np.arange(len(probs)), (probs[:,0] < probs[:, 1]).astype(int)]
+				probs = probs.reshape((len(probs), 1))
+				this_targets = targets
+				# calculate score for test set
+				score = accuracy_score(this_targets, preds)
+				# summarize score
+				print('Label Spreading Accuracy: %.3f' % (score*100))
 		# return self.get_metrics(probs, preds, this_targets, probs_all_pos_neg, preds_all_pos_neg, this_targets_all_pos_neg)
 		return self.get_metrics(probs, preds, this_targets)
 
 	def cv_model_all_pos_neg_eval(self, data, targets, folds=None, train_test_ratio=None):
 		print "Final Model Evaluation!"
-		probs = self.predict_proba(data)
-		preds = self.predict(data)
-		this_targets = targets
-
+		if self.classifier_select == "CNN":
+			probs = self.predict_proba(data)
+			preds = self.predict(data)
+			this_targets = targets
+		elif self.classifier_select == "LS":
+			preds = self.clf.predict(data)
+			preds = preds.reshape((len(preds), 1))
+			probs = self.clf.predict_proba(data)
+			probs = probs[np.arange(len(probs)), (probs[:,0] < probs[:, 1]).astype(int)]
+			probs = probs.reshape((len(probs), 1))
+			this_targets = targets
 		# return self.get_metrics(probs, preds, this_targets, probs_all_pos_neg, preds_all_pos_neg, this_targets_all_pos_neg)
 		return self.get_metrics(probs, preds, this_targets)
-
-
 
 
 

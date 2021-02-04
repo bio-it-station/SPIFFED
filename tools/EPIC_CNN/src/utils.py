@@ -118,6 +118,8 @@ def bench_by_PPI_clf(num_folds, scoreCalc, train_gold_complexes, clf):
 
 
 
+#@ Kuan-Hao Chao
+# Add 'CNN' and 'Label Spreading' methods
 def cv_bench_clf(scoreCalc, clf, gs, outDir, verbose=False, learning_selection = 'sl', format="pdf", folds=None, train_test_ratio=None, num_ep = 2, num_frc = None):
 # def cv_bench_clf(scoreCalc, clf, gs, outDir, verbose=False, format="pdf", folds = 5):
 	_, data, targets, unsure_data, unsure_targets = scoreCalc.toSklearnData(gs)
@@ -165,10 +167,11 @@ def cv_bench_clf(scoreCalc, clf, gs, outDir, verbose=False, learning_selection =
 	#######################################
 
 
-	# ## This is the evaluation for baseline model
-	# this_targets, preds, probs, precision, recall, fmeasure, auc_pr, auc_roc, curve_pr, curve_roc = clf.cv_eval(data, targets, unsure_data, unsure_targets, outDir, folds, train_test_ratio, num_ep, num_frc)
-	# outDir_all_pos_neg_testing = outDir + os.sep + "all_pos_neg_testing"
-	# eval_plotting(outDir_all_pos_neg_testing, this_targets, preds, probs, precision, recall, fmeasure, auc_pr, auc_roc, curve_pr, curve_roc)
+	if learning_selection == 'sl':
+		## This can be set to baseline model
+		this_targets, preds, probs, precision, recall, fmeasure, auc_pr, auc_roc, curve_pr, curve_roc = clf.cv_eval(data, targets, unsure_data, unsure_targets, outDir, folds, train_test_ratio, num_ep, num_frc)
+		outDir_all_pos_neg_testing = outDir + os.sep + "all_pos_neg_testing"
+		eval_plotting(outDir_all_pos_neg_testing, this_targets, preds, probs, precision, recall, fmeasure, auc_pr, auc_roc, curve_pr, curve_roc)
 
 	if learning_selection == 'ssl':
 		## This is the evaluation for semi-supervised learning
@@ -179,24 +182,24 @@ def cv_bench_clf(scoreCalc, clf, gs, outDir, verbose=False, learning_selection =
 	rownames = ["Precision", "Recall", "F-Measure", "AUC PR", "AUC ROC"]
 	return rownames, [precision, recall, fmeasure, auc_pr, auc_roc]
 
-def bench_clf(scoreCalc, train, eval, clf, outDir, verbose=False, format = "pdf"):
-	_, data_train, targets_train = scoreCalc.toSklearnData(train)
-	_, data_eval, targets_eval = scoreCalc.toSklearnData(eval)
-
-	clf.fit(data_train, targets_train)
-	precision, recall, fmeasure, auc_pr, auc_roc, curve_pr, curve_roc = clf.eval(data_eval, targets_eval)
-	plotCurves([("", curve_roc)], outDir + ".roc." + format, "False Positive rate", "True Positive Rate")
-	recall_vals, precision_vals, threshold = curve_pr
-	plotCurves([("", (precision_vals, recall_vals))], outDir + ".pr." + format, "Recall", "Precision")
-
-	threshold = np.append(threshold, 1)
-	plotCurves([("Precision", (precision_vals, threshold)), ("Recall", (recall_vals, threshold))], outDir + ".cutoff." + format, "Cutoff", "Evaluation metric score")
-	if verbose:
-		rownames = ["Precision", "Recall", "F-Measure", "AUC PR", "AUC ROC"]
-		val_scores = [precision, recall, fmeasure, auc_pr, auc_roc]
-		for i in range(len(rownames)):
-			print rownames[i]
-			print val_scores[i]
+# def bench_clf(scoreCalc, train, eval, clf, outDir, verbose=False, format = "pdf"):
+# 	_, data_train, targets_train = scoreCalc.toSklearnData(train)
+# 	_, data_eval, targets_eval = scoreCalc.toSklearnData(eval)
+#
+# 	clf.fit(data_train, targets_train)
+# 	precision, recall, fmeasure, auc_pr, auc_roc, curve_pr, curve_roc = clf.eval(data_eval, targets_eval)
+# 	plotCurves([("", curve_roc)], outDir + ".roc." + format, "False Positive rate", "True Positive Rate")
+# 	recall_vals, precision_vals, threshold = curve_pr
+# 	plotCurves([("", (precision_vals, recall_vals))], outDir + ".pr." + format, "Recall", "Precision")
+#
+# 	threshold = np.append(threshold, 1)
+# 	plotCurves([("Precision", (precision_vals, threshold)), ("Recall", (recall_vals, threshold))], outDir + ".cutoff." + format, "Cutoff", "Evaluation metric score")
+# 	if verbose:
+# 		rownames = ["Precision", "Recall", "F-Measure", "AUC PR", "AUC ROC"]
+# 		val_scores = [precision, recall, fmeasure, auc_pr, auc_roc]
+# 		for i in range(len(rownames)):
+# 			print rownames[i]
+# 			print val_scores[i]
 
 
 
@@ -245,42 +248,65 @@ def plotCurves(curves, outF, xlab, ylab):
 	plt.savefig(outF, additional_artists=art, bbox_inches="tight")
 	plt.close()
 
-# @author Florian Goebels
+#@ Kuan-Hao Chao
+# Add 'CNN' and 'Label Spreading' methods
 def predictInteractions(scoreCalc, clf, gs, outDir, to_train=True, verbose= True, folds = 5, train_test_ratio = None):
 
 	_, data, targets, unsure_data, unsure_targets = scoreCalc.toSklearnData(gs)
 	_all, data_all, targets_all, unsure_data, unsure_targets = scoreCalc.toSklearnDataAll(gs)
 
-	# if to_train: clf.fit(data, targets)
+	#######################################
+	## "Data reshape"
+	#######################################
+	if clf.classifier_select == "CNN":
+		data = np.array(data)
+		num_samples, num_scores, num_frc = data.shape
+		print("data: ", data.shape)
+		data = data.reshape((num_samples, num_scores, num_frc, 1))
+		print("data.shape: ", data.shape)
+		num_ppi, num_ep, num_frc, tmp = data.shape
 
-	# num_features = data.shape[1]
-	##########################################
-	## "Change data shape"
-	##########################################
-	data = np.array(data)
-	num_samples, num_scores, num_frc = data.shape
-	print("data: ", data.shape)
-	data = data.reshape((num_samples, num_scores, num_frc, 1))
-	print("data.shape: ", data.shape)
-	num_ppi, num_ep, num_frc, tmp = data.shape
-
-	data_all = np.array(data_all)
-	num_samples_all, num_scores_all, num_frc_all = data_all.shape
-	print("data: ", data_all.shape)
-	data_all = data_all.reshape((num_samples_all, num_scores_all, num_frc_all, 1))
-	print("data_all.shape: ", data_all.shape)
-	num_ppi_all, num_ep_all, num_frc_all, tmp = data_all.shape
+		data_all = np.array(data_all)
+		num_samples_all, num_scores_all, num_frc_all = data_all.shape
+		print("data: ", data_all.shape)
+		data_all = data_all.reshape((num_samples_all, num_scores_all, num_frc_all, 1))
+		print("data_all.shape: ", data_all.shape)
+		num_ppi_all, num_ep_all, num_frc_all, tmp = data_all.shape
 
 
-	unsure_data = np.array(unsure_data)
-	num_samples_uns, num_scores_uns, num_frc_uns = unsure_data.shape
-	print("unsure_data: ", unsure_data.shape)
-	unsure_data = unsure_data.reshape((num_samples_uns, num_scores_uns, num_frc_uns, 1))
-	print("unsure_data.shape: ", unsure_data.shape)
-	num_ppi_uns, num_ep_uns, num_frc_uns, tmp = unsure_data.shape
-	##########################################
-	## End of "Change data shape"
-	##########################################
+		unsure_data = np.array(unsure_data)
+		num_samples_uns, num_scores_uns, num_frc_uns = unsure_data.shape
+		print("unsure_data: ", unsure_data.shape)
+		unsure_data = unsure_data.reshape((num_samples_uns, num_scores_uns, num_frc_uns, 1))
+		print("unsure_data.shape: ", unsure_data.shape)
+		num_ppi_uns, num_ep_uns, num_frc_uns, tmp = unsure_data.shape
+	elif clf.classifier_select == "LS":
+		data = np.array(data)
+		num_samples, num_scores, num_frc = data.shape
+		print("data: ", data.shape)
+		data = data.reshape((num_samples, num_scores*num_frc))
+		print("data.shape: ", data.shape)
+		num_ppi, num_ep_frc = data.shape
+
+		data_all = np.array(data_all)
+		num_samples_all, num_scores_all, num_frc_all = data_all.shape
+		print("data: ", data_all.shape)
+		data_all = data_all.reshape((num_samples_all, num_scores_all*num_frc_all))
+		print("data_all.shape: ", data_all.shape)
+		num_ppi_all, num_ep_frc_all = data_all.shape
+
+		unsure_data = np.array(unsure_data)
+		num_samples_uns, num_scores_uns, num_frc_uns = unsure_data.shape
+		print("unsure_data: ", unsure_data.shape)
+		unsure_data = unsure_data.reshape((num_samples_uns, num_scores_uns*num_frc_uns))
+		print("unsure_data.shape: ", unsure_data.shape)
+		num_ppi_uns, num_ep_frc_uns = unsure_data.shape
+
+		# TMP
+		num_ep = 2
+	#######################################
+	## End of "Data reshape"
+	#######################################
 
 	this_targets, preds, probs, precision, recall, fmeasure, auc_pr, auc_roc, curve_pr, curve_roc = clf.cv_model_creation(data, targets, unsure_data, unsure_targets, folds, train_test_ratio, num_ep, num_frc)
 
@@ -293,19 +319,24 @@ def predictInteractions(scoreCalc, clf, gs, outDir, to_train=True, verbose= True
 	eval_plotting(outDir_all_pos_neg, this_targets, preds, probs, precision, recall, fmeasure, auc_pr, auc_roc, curve_pr, curve_roc)
 
 
-
-
-
 	def getPredictions(scores, edges, clf):
-		# print("edges: ", edges)
-		# print("scores: ", scores)
 		out = []
-		num_samples, num_scores, num_frc = scores.shape
-		# print("data: ", data.shape)
-		scores = scores.reshape((num_samples, num_scores, num_frc, 1))
+		if clf.classifier_select == "CNN":
+			num_samples, num_scores, num_frc = scores.shape
+			# print("data: ", data.shape)
+			scores = scores.reshape((num_samples, num_scores, num_frc, 1))
 
-		pred_prob = clf.predict_proba(scores)
-		pred_class = clf.predict(scores)
+			pred_prob = clf.predict_proba(scores)
+			pred_class = clf.predict(scores)
+		elif clf.classifier_select == "LS":
+			num_samples, num_scores, num_frc = scores.shape
+			# print("data: ", data.shape)
+			scores = scores.reshape((num_samples, num_scores*num_frc))
+			pred_class = clf.clf.predict(scores)
+			pred_class = pred_class.reshape((len(pred_class), 1))
+			pred_prob = clf.clf.predict_proba(scores)
+			pred_prob = pred_prob[np.arange(len(pred_prob)), (pred_prob[:,0] < pred_prob[:, 1]).astype(int)]
+			pred_prob = pred_prob.reshape((len(pred_prob), 1))
 		print("pred_class: ", len(pred_class))
 		for i, prediction in enumerate(pred_class):
 			# if prediction == 1:
