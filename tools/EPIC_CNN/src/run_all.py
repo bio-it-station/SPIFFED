@@ -4,23 +4,26 @@ import os
 ##########################################
 ## Parameters that you should change
 ##########################################
-# 0.3
 test_ratio_ls = [30, 70, 90]
-# 1, 5
-features = "000000001"
 negative_ratio_ls = [1, 5]
 # 'k' or 'd'
 K_D_TRAIN = 'd'
 FOLD_NUM = 5
-NUM_EP = 2
 # 'RF_SL', 'CNN_SL', 'CNN_SSL', 'LS_SSL', or 'CNN_ENSEMBLE'
 OUT_DIR_MTHD = 'CNN_SSL'
-# 'sl' or 'ssl'
+# 'sl': supervised learning; or 'ssl': semi-supervised learning
 LEARNING_SELECTION = 'sl'
-# 'SELF' or 'EPIC'
+# 'SELF' or 'EPIC' or 'TEST'
 data_source = 'SELF'
 ##########################################
 ##########################################
+
+NUM_EP = 2
+
+if OUT_DIR_MTHD == 'RF_SL':
+    FEATURES = "11101001"
+elif OUT_DIR_MTHD == 'CNN_SL' or OUT_DIR_MTHD == 'CNN_SSL' or OUT_DIR_MTHD == 'LS_SSL' or OUT_DIR_MTHD == 'CNN_ENSEMBLE':
+    FEATURES = "000000001"
 
 if data_source == 'SELF':
     EP_DIR = '/home/kuan-hao/EPPC/input/real_data/elution_profiles/'
@@ -32,6 +35,11 @@ elif data_source == 'EPIC':
     GD_FILE = '/home/kuan-hao/EPPC/input/Worm_reference_complexes.txt'
     OUT_DIR_SRC = 'EPIC_DATA'
     NUM_FRC = 60
+elif data_source == 'TEST':
+    EP_DIR = '/home/kuan-hao/EPPC/input/real_data/elution_profiles_test/'
+    GD_FILE = '/home/kuan-hao/EPPC/input/real_data/gold_standard.tsv'
+    OUT_DIR_SRC = 'TEST'
+    NUM_FRC = 27
 
 if K_D_TRAIN == 'd':
     OUT_DIR_TRN = 'DIRECT'
@@ -54,7 +62,7 @@ for test_ratio in test_ratio_ls:
         # exec_command = 'python ./main.py -s 000000001 /home/kuan-hao/EPPC/input/real_data/elution_profiles/ -c /home/kuan-hao/EPPC/input/real_data/gold_standard.tsv /home/kuan-hao/EPPC/output/SELF_DATA/CNN/FOLDS/num_ep_'+str(NUM_EP)+'__num_frc_'+str(NUM_FRC)+'__fold_number_'+str(FOLD_NUM)+'__negative_ratio_'+str(negative_ratio)+' -o Intensity_H -M CNN -n 10 -m EXP -f STRING --K_D_TRAIN '+str(K_D_TRAIN)+' --FOLD_NUM '+str(FOLD_NUM)+' --TRAIN_TEST_RATIO '+str(float(test_ratio)/100)+' --POS_NEG_RATIO '+str(negative_ratio) + ' --NUM_EP '+str(NUM_EP)+' --NUM_FRC '+str(NUM_FRC)
 
         # CNN without weights; EPIC data
-        exec_command = 'python ./main.py -s '+features+' '+EP_DIR+' -c '+GD_FILE+' /home/kuan-hao/EPPC/output/'+OUT_DIR_SRC+'/'+OUT_DIR_MTHD+'/'+OUT_DIR_TRN+'/num_ep_'+str(NUM_EP)+'__num_frc_'+str(NUM_FRC)+'__fold_number_'+str(FOLD_NUM)+'__negative_ratio_'+str(negative_ratio)+' -o Beads_A -M CNN -n 10 -m EXP -f STRING --LEARNING_SELECTION '+str(LEARNING_SELECTION)+' --K_D_TRAIN '+str(K_D_TRAIN)+' --FOLD_NUM '+str(FOLD_NUM)+' --TRAIN_TEST_RATIO '+str(float(test_ratio)/100)+' --POS_NEG_RATIO '+str(negative_ratio) + ' --NUM_EP '+str(NUM_EP)+' --NUM_FRC '+str(NUM_FRC)
+        exec_command = 'python ./main.py -s '+FEATURES+' '+EP_DIR+' -c '+GD_FILE+' /home/kuan-hao/EPPC/output/'+OUT_DIR_SRC+'/'+OUT_DIR_MTHD+'/'+OUT_DIR_TRN+'/num_ep_'+str(NUM_EP)+'__num_frc_'+str(NUM_FRC)+'__fold_number_'+str(FOLD_NUM)+'__negative_ratio_'+str(negative_ratio)+' -o Beads_A -M CNN -n 10 -m EXP -f STRING --LEARNING_SELECTION '+str(LEARNING_SELECTION)+' --K_D_TRAIN '+str(K_D_TRAIN)+' --FOLD_NUM '+str(FOLD_NUM)+' --TRAIN_TEST_RATIO '+str(float(test_ratio)/100)+' --POS_NEG_RATIO '+str(negative_ratio) + ' --NUM_EP '+str(NUM_EP)+' --NUM_FRC '+str(NUM_FRC)
 
         # CNN without weights; SELF data
         # exec_command = 'python ./main.py -s 000000001 /home/kuan-hao/EPPC/input/real_data/elution_profiles/ -c /home/kuan-hao/EPPC/input/real_data/gold_standard.tsv /home/kuan-hao/EPPC/output/SELF_DATA/CNN_SSL/DIRECT_NO_WEIGHTS/2_num_ep_'+str(NUM_EP)+'__num_frc_'+str(NUM_FRC)+'__fold_number_'+str(FOLD_NUM)+'__negative_ratio_'+str(negative_ratio)+' -o Intensity_H -M CNN -n 10 -m EXP -f STRING --LEARNING_SELECTION '+str(LEARNING_SELECTION)+' --K_D_TRAIN '+str(K_D_TRAIN)+' --FOLD_NUM '+str(FOLD_NUM)+' --TRAIN_TEST_RATIO '+str(float(test_ratio)/100)+' --POS_NEG_RATIO '+str(negative_ratio) + ' --NUM_EP '+str(NUM_EP)+' --NUM_FRC '+str(NUM_FRC)
