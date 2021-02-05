@@ -248,17 +248,44 @@ def plotCurves(curves, outF, xlab, ylab):
 	plt.savefig(outF, additional_artists=art, bbox_inches="tight")
 	plt.close()
 
+
+
+
+
+
+# # @author Florian Goebels
+# def predictInteractions(scoreCalc, clf, gs, outDir, to_train=True, verbose= True, k_d_training = "k", folds = 5, train_test_ratio = None):
+# 	this_targets, preds, probs, precision, recall, fmeasure, auc_pr, auc_roc, curve_pr, curve_roc = clf.cv_model_creation(data_train, targets_train, k_d_training, folds, train_test_ratio)
+#
+#
+# 	outDir_all_pos_neg_train = outDir + os.sep + "all_pos_neg_training"
+# 	eval_plotting(outDir_all_pos_neg_train, this_targets, preds, probs, precision, recall, fmeasure, auc_pr, auc_roc, curve_pr, curve_roc)
+#
+#
+#
+# 	this_targets, preds, probs, precision, recall, fmeasure, auc_pr, auc_roc, curve_pr, curve_roc = clf.cv_model_all_pos_neg_eval(data_all, targets_all, k_d_training, folds, train_test_ratio)
+#
+# 	outDir_all_pos_neg = outDir + os.sep + "all_pos_neg"
+# 	eval_plotting(outDir_all_pos_neg, this_targets, preds, probs, precision, recall, fmeasure, auc_pr, auc_roc, curve_pr, curve_roc)
+#
+#
+# 	num_features = data_train.shape[1]
+#
+# 	print("data_train: ", data_train.shape)
+# 	print("data_train.shape: ", data_train.shape)
 #@ Kuan-Hao Chao
 # Add 'CNN' and 'Label Spreading' methods
-def predictInteractions(scoreCalc, clf, gs, outDir, to_train=True, verbose= True, folds = 5, train_test_ratio = None):
+def predictInteractions(scoreCalc, clf, gs, outDir, to_train=True, verbose= True, folds = 5, train_test_ratio = None, num_ep=2, num_frc=27):
 
 	_, data, targets, unsure_data, unsure_targets = scoreCalc.toSklearnData(gs)
 	_all, data_all, targets_all, unsure_data, unsure_targets = scoreCalc.toSklearnDataAll(gs)
 
+	if clf.classifier_select == "RF":
+		pass
 	#######################################
 	## "Data reshape"
 	#######################################
-	if clf.classifier_select == "CNN":
+	elif clf.classifier_select == "CNN":
 		data = np.array(data)
 		num_samples, num_scores, num_frc = data.shape
 		print("data: ", data.shape)
@@ -301,9 +328,6 @@ def predictInteractions(scoreCalc, clf, gs, outDir, to_train=True, verbose= True
 		unsure_data = unsure_data.reshape((num_samples_uns, num_scores_uns*num_frc_uns))
 		print("unsure_data.shape: ", unsure_data.shape)
 		num_ppi_uns, num_ep_frc_uns = unsure_data.shape
-
-		# TMP
-		num_ep = 2
 	#######################################
 	## End of "Data reshape"
 	#######################################
@@ -318,14 +342,20 @@ def predictInteractions(scoreCalc, clf, gs, outDir, to_train=True, verbose= True
 	outDir_all_pos_neg = outDir + os.sep + "all_pos_neg"
 	eval_plotting(outDir_all_pos_neg, this_targets, preds, probs, precision, recall, fmeasure, auc_pr, auc_roc, curve_pr, curve_roc)
 
+	num_features = data.shape[1]
+
+	print("data: ", data.shape)
+	print("data.shape: ", data.shape)
 
 	def getPredictions(scores, edges, clf):
 		out = []
-		if clf.classifier_select == "CNN":
+		if clf.classifier_select == "RF":
+			pred_prob = clf.predict_proba(scores)
+			pred_class = clf.predict(scores)
+		elif clf.classifier_select == "CNN":
 			num_samples, num_scores, num_frc = scores.shape
 			# print("data: ", data.shape)
 			scores = scores.reshape((num_samples, num_scores, num_frc, 1))
-
 			pred_prob = clf.predict_proba(scores)
 			pred_class = clf.predict(scores)
 		elif clf.classifier_select == "LS":
@@ -346,7 +376,10 @@ def predictInteractions(scoreCalc, clf, gs, outDir, to_train=True, verbose= True
 		return out
 
 	out = []
-	tmpscores = np.zeros((100000, num_ep, num_frc))
+	if clf.classifier_select == "RF":
+		tmpscores = np.zeros((100000, num_features))
+	elif clf.classifier_select == "CNN" or clf.classifier_select == "LS":
+		tmpscores = np.zeros((100000, num_ep, num_frc))
 	edges = [""]*100000
 	k = 0
 	chunk_num=1
@@ -355,7 +388,11 @@ def predictInteractions(scoreCalc, clf, gs, outDir, to_train=True, verbose= True
 	for line in range(scoreCalc.to_predict):
 		if k % 100000==0 and k != 0:
 			out.extend(getPredictions(tmpscores[0:k, :], edges[0:k], clf))
-			tmpscores = np.zeros((100000, num_ep, num_frc))
+
+			if clf.classifier_select == "RF":
+				tmpscores = np.zeros((100000, num_features))
+			elif clf.classifier_select == "CNN" or clf.classifier_select == "LS":
+				tmpscores = np.zeros((100000, num_ep, num_frc))
 			edges = [""] * 100000
 			if verbose:
 				print "Completed chunk %i" % chunk_num
@@ -365,10 +402,12 @@ def predictInteractions(scoreCalc, clf, gs, outDir, to_train=True, verbose= True
 		if edge == "" or edge_scores == []: continue
 		# print("edge_scores: ", edge_scores)
 		# edge_scores = edge_scores.reshape(1, -1)
+		if clf.classifier_select == "RF":
+			edge_scores = edge_scores.reshape(1, -1)
 		edges[k] = edge
 		tmpscores[k,0:(edge_scores.shape)[1]] = edge_scores
 		k += 1
-	# scoreCalc.close()
+	scoreCalc.close()
 	out.extend(getPredictions(tmpscores[0:k,:], edges[0:k], clf))
 	return out
 
@@ -398,7 +437,7 @@ def get_FA_data(anno_source, taxid, file="", datadir = ""):
 		print "EPIC only support GeneMane, STRING, and flat file input please use the followign tags for anno_source GM, STRING, FILE. Returning empty string object."
 	return functionalData
 
-def make_predictions(score_calc, mode, clf, gs, output_dir, fun_anno="", verbose = False, folds = 5, train_test_ratio = None):
+def make_predictions(score_calc, mode, clf, gs, output_dir, fun_anno="", verbose = False, folds = 5, train_test_ratio = None, num_ep = 2, num_frc = 27):
 	mode = mode.upper()
 
 	def get_edges_from_network(network):
@@ -410,14 +449,14 @@ def make_predictions(score_calc, mode, clf, gs, output_dir, fun_anno="", verbose
 
 	networks = []
 	# predicts using experiment only
-	if mode == "EXP" or mode == "BR": networks.append(predictInteractions(score_calc, clf, gs, output_dir, True, verbose, folds, train_test_ratio))
+	if mode == "EXP" or mode == "BR": networks.append(predictInteractions(score_calc, clf, gs, output_dir, True, verbose, folds, train_test_ratio, num_ep, num_frc))
 	#predicts using fun_anno only
 	if mode == "FA"or mode == "BR":
 		if fun_anno=="":
 			# TODO make illigal argument error
 			print "if using only functional annotation for prediction functional annotation (fun_anno param != "") must not be empty"
 			sys.exit()
-		networks.append(predictInteractions(score_calc, clf, gs, output_dir, True, verbose, folds, train_test_ratio))
+		networks.append(predictInteractions(score_calc, clf, gs, output_dir, True, verbose, folds, train_test_ratio, num_ep, num_frc))
 
 	#predict using both functional annotation and exp
 	if mode == "COMB" or mode == "BR":
@@ -425,7 +464,7 @@ def make_predictions(score_calc, mode, clf, gs, output_dir, fun_anno="", verbose
 		print tmp_score_calc.scores.shape
 		tmp_score_calc.add_fun_anno(fun_anno)
 		print tmp_score_calc.scores.shape
-		networks.append(predictInteractions(score_calc, clf, gs, output_dir, True, verbose, folds, train_test_ratio))
+		networks.append(predictInteractions(score_calc, clf, gs, output_dir, True, verbose, folds, train_test_ratio, num_ep, num_frc))
 
 	# return error when no networks is predicted
 	if len(networks) == 0:

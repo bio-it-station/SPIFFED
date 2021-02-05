@@ -13,33 +13,11 @@ import numpy as np
 import warnings
 warnings.filterwarnings('ignore')
 
-# def Goldstandard_from_cluster_File(gsF, foundprots=""):
-# 	clusters = GS.Clusters(need_to_be_mapped=False)
-# 	clusters.read_file(gsF)
-# 	if foundprots != "": clusters.remove_proteins(foundprots)
-# 	gs = GS.Goldstandard_from_Complexes("All")
-# 	gs.complexes = clusters
-# 	gs.make_pos_neg_ppis()
-# 	return gs
-#
-#
-# def Goldstandard_from_PPI_File(gsF, foundprots=""):
-# 	out = GS.Goldstandard_from_Complexes("gs")
-# 	gsFH = open(gsF)
-# 	for line in gsFH:
-# 		line = line.rstrip()
-# 		ida, idb, class_label = line.split("\t")[0:3]
-# 		if foundprots !="" and (ida not in foundprots or idb not in foundprots): continue
-# 		edge = "\t".join(sorted([ida, idb]))
-# 		if class_label == "positive":
-# 			out.positive.add(edge)
-# 		else:
-# 			out.negative.add(edge)
-# 	gsFH.close()
-# 	return out
-
 def main():
 	parser = argparse.ArgumentParser()
+	#######################
+	## Original argument ##
+	#######################
 	parser.add_argument("-s", "--feature_selection", type = str, help="Select which features to use. This is an 8 position long array of 0 and 1, where each position determines which co-elution feature to use. Features sorted by position are: MI, Bayes, Euclidean, WCC, Jaccard, PCCN, PCC, and Apex.  Each default=11101001", default="11101001")
 	parser.add_argument("input_dir",  type = str, help="Directory containing the elution files for each experiment")
 
@@ -76,14 +54,18 @@ def main():
 						default=2)
 	parser.add_argument("-P", "--precalcualted_score_file", type = str,help="Path to precalulated scorefile to read scores from for faster rerunning of EPIC. default = None",
 						default="NONE")
+	################################
+	## End of "Original argument" ##
+	################################
 
 	########################
 	## New added argument ##
 	########################
+	# Random Forest Parameters
+	parser.add_argument("--N_ESTIMATORS", type = int, help="n_estimators in random forest default = 100", default=100)
+	parser.add_argument("--MAX_DEPTH", type = int, help="max_depth in random forest default = None", default=-1)
 	# supervised and semi-supervised input condition:
 	parser.add_argument("--LEARNING_SELECTION", type = str, help="Values: sl, ssl", default="sl")
-
-
 	# k-fold or direct training:
 	parser.add_argument("--K_D_TRAIN", type = str, help="Values: d, k", default="d")
 	# fold_num
@@ -106,27 +88,12 @@ def main():
 	args.fun_anno_source = args.fun_anno_source.upper()
 
 	##########################################
-	## This part is "PASE INPUT"
+	## This part is "INPUT ASSIGNMENT"
 	##########################################
-	# K_D_TRAIN = raw_input("Enter k-fold or direct training (k/d):")
-	# if K_D_TRAIN == "k":
-	# 	print "You are using k-fold training!"
-	# 	FOLD_NUM = input("Enter fold number:")
-	# 	print("Fold number is: " + str(FOLD_NUM))
-	# 	TRAIN_TEST_RATIO = None
-	# elif K_D_TRAIN == "d":
-	# 	print "You are using direct training!"
-	# 	TRAIN_TEST_RATIO = input("Enter test/all_data ratio:")
-	# 	print("Your TRAIN_TEST_RATIO ratio is: " + str(TRAIN_TEST_RATIO))
-	# 	FOLD_NUM = None
-	# else:
-	# 	print "Please input 'k' or 'd'."
-	# 	sys.exit()
-	# NUM_EP = 2
-	# NUM_FRC = input("Enter number of fractions:")
-	# POS_NEG_RATIO = input("Enter negative/positive ratio:")
-	# num_ep = 2
-	# num_frc = 27
+	N_ESTIMATORS = args.N_ESTIMATORS
+	MAX_DEPTH = args.MAX_DEPTH
+	if MAX_DEPTH == -1:
+		MAX_DEPTH = None
 	LEARNING_SELECTION = args.LEARNING_SELECTION
 	K_D_TRAIN = args.K_D_TRAIN
 	FOLD_NUM = args.FOLD_NUM
@@ -136,6 +103,9 @@ def main():
 	POS_NEG_RATIO = args.POS_NEG_RATIO
 	NUM_EP = args.NUM_EP
 	NUM_FRC = args.NUM_FRC
+
+	print("  * N_ESTIMATORS: ", N_ESTIMATORS)
+	print("  * MAX_DEPTH: ", MAX_DEPTH)
 	print("  * LEARNING_SELECTION: ", LEARNING_SELECTION)
 	print("  * K_D_TRAIN: ", K_D_TRAIN)
 	print("  * FOLD_NUM: ", FOLD_NUM)
@@ -144,22 +114,19 @@ def main():
 	print("  * NUM_EP: ", NUM_EP)
 	print("  * NUM_FRC: ", NUM_FRC)
 	##########################################
-	## End of "PASE INPUT"
+	## End of "INPUT ASSIGNMENT"
 	##########################################
 
 	##########################################
 	## Create feature combination
 	##########################################
  	if args.feature_selection == "00000000":
-		print "Select at least one feature"
+		print "** Select at least one feature"
 		sys.exit()
 	elif args.feature_selection == "000000000":
-		# Local Pcc
+		# Local Pcc (Currently not maintaing Local Pcc)
 		this_scores = utils.get_fs_comb(args.feature_selection)
 		print "\t".join([fs.name for fs in this_scores])
- 	# elif args.feature_selection == "000000001":
-	# 	this_scores = utils.get_fs_comb(args.feature_selection)
-	# 	print "\t".join([fs.name for fs in this_scores])
 	else:
 		this_scores = utils.get_fs_comb(args.feature_selection)
 		print "\t".join([fs.name for fs in this_scores])
@@ -182,7 +149,6 @@ def main():
 	if ((args.taxid != "" and  args.ppi != "") or (args.cluster != "" and  args.ppi != "" )):
 		print "Refernce from cluster and PPI are nor compatiple. Please supply ppi or complex reference, not both!"
 		sys.exit()
-
 	if args.taxid == "" and  args.ppi == "" and args.cluster == "":
 		print "Please supply a reference by setting taxid, cluster, or ppi tag"
 		sys.exit()
@@ -191,7 +157,6 @@ def main():
 	if (args.taxid != "" and args.cluster == "" and args.ppi == ""):
 		print "Loading clusters from GO, CORUM, and Intact"
 		gs_clusters.extend(utils.get_reference_from_net(args.taxid))
-
 	if args.cluster != "":
 		print "Loading complexes from file"
 		print("&& args.cluster: ", args.cluster)
@@ -200,12 +165,9 @@ def main():
 			gs_clusters.append(GS.FileClusters(args.cluster, "all"))
 		else:
 			gs_clusters.append(GS.FileClusters(args.cluster, foundprots))
-
-
 	if args.ppi != "":
 		print "Reading PPI file from %s" % args.reference
 		gs = Goldstandard_from_PPI_File(args.ppi, foundprots)
-
 	print gs_clusters
 	if 	len(gs_clusters)>0:
 		gs = utils.create_goldstandard(gs_clusters, args.taxid, foundprots, pos_neg_ratio = POS_NEG_RATIO)
@@ -228,7 +190,7 @@ def main():
 	## "Creating classifier"
 	##########################################
 	classifier_select = args.classifier
-	clf = CS.CLF_Wrapper(args.num_cores, classifier_select, learning_selection=LEARNING_SELECTION, k_d_train=K_D_TRAIN, num_ep=NUM_EP, num_frc=NUM_FRC, pos_neg_ratio = POS_NEG_RATIO)
+	clf = CS.CLF_Wrapper(args.num_cores, classifier_select, learning_selection=LEARNING_SELECTION, k_d_train=K_D_TRAIN, num_ep=NUM_EP, num_frc=NUM_FRC, pos_neg_ratio = POS_NEG_RATIO, n_estimators=N_ESTIMATORS, max_depth=MAX_DEPTH)
 	##########################################
 	## End of "Creating classifier"
 	##########################################
@@ -237,7 +199,7 @@ def main():
 	##########################################
 	## Calculating coelutionScores
 	##########################################
-	scoreCalc = CS.CalculateCoElutionScores(this_scores, elution_datas, output_dir + ".scores.txt", num_cores=args.num_cores, cutoff= args.co_elution_cutoff)
+	scoreCalc = CS.CalculateCoElutionScores(this_scores, elution_datas, output_dir + ".scores.txt", classifier_select=classifier_select, num_cores=args.num_cores, cutoff= args.co_elution_cutoff)
 	if args.precalcualted_score_file == "NONE":
 		scoreCalc.calculate_coelutionDatas(gs)
 	else:
@@ -313,7 +275,7 @@ def main():
 	##############################################
 	## This part is "MODEL TRAINING & PREDICTION"
 	##############################################
-	network = utils.make_predictions(scoreCalc, args.mode, clf, gs, output_dir, fun_anno=functionalData, verbose = False, folds = FOLD_NUM, train_test_ratio = TRAIN_TEST_RATIO)
+	network = utils.make_predictions(scoreCalc, args.mode, clf, gs, output_dir, fun_anno=functionalData, verbose = False, folds = FOLD_NUM, train_test_ratio = TRAIN_TEST_RATIO, num_ep = NUM_EP, num_frc = NUM_FRC)
 
 	# Predict protein interaction
 	outFH = open("%s.pred.txt" % (output_dir), "w")
