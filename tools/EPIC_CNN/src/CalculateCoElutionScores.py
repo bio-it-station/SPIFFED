@@ -1288,7 +1288,7 @@ class CLF_Wrapper:
 			self.clf = RandomForestClassifier(n_estimators=self.n_estimators, max_depth=self.max_depth, n_jobs=self.num_cores, random_state=0)
 			self.clf.fit(data, targets)
 		elif self.classifier_select == "CNN" or self.classifier_select == "LS":
-			early_stopping = EarlyStopping(monitor='val_loss', patience=50, verbose=2)
+			early_stopping = EarlyStopping(monitor='val_acc', patience=50, verbose=2)
 			# print("weights: ", self.pos_neg_ratio)
 			# weights = {0:1, 1:self.pos_neg_ratio}
 			# weights = {0:1, 1:1}
