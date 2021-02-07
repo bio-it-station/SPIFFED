@@ -1295,7 +1295,7 @@ class CLF_Wrapper:
 			# With weights
 			# self.clf.fit(data, targets, epochs=200, callbacks=[early_stopping], class_weight=weights)
 			# Without weights
-			self.clf.fit(data, targets, batch_size=50, epochs=1000, callbacks=[early_stopping])
+			self.clf.fit(data, targets, batch_size=50, epochs=400, callbacks=[early_stopping])
 			# self.clf.fit(data, targets)
 
 	def eval(self, data, targets):
@@ -1426,7 +1426,7 @@ class CLF_Wrapper:
 					selection_candid_neg = np.where(np.any(probs<0.05, axis=1))
 
 					pos_size = size
-					neg_size = size*5
+					neg_size = size*2
 					if pos_size > len(selection_candid_pos[0]):
 						size = len(selection_candid_pos[0])
 					if neg_size > len(selection_candid_neg[0]):
@@ -1609,7 +1609,7 @@ class CLF_Wrapper:
 						selection_candid_pos = np.where(np.any(probs>0.99, axis=1))
 						selection_candid_neg = np.where(np.any(probs<0.05, axis=1))
 						pos_size = size
-						neg_size = size*5
+						neg_size = size*2
 						if pos_size > len(selection_candid_pos[0]):
 							size = len(selection_candid_pos[0])
 						if neg_size > len(selection_candid_neg[0]):
