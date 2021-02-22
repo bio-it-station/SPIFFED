@@ -1,4 +1,0 @@
-^data-raw$
-R/fold_change.R
-^.*\.Rproj$
-^\.Rproj\.user$

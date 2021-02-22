@@ -455,8 +455,8 @@ def make_predictions(score_calc, score_calc_eval, mode, clf, gs, gs_eval, output
 	# predicts using experiment only
 	if mode == "EXP" or mode == "BR":
 		network_train, network_eval = predictInteractions(score_calc, score_calc_eval, clf, gs, gs_eval, output_dir, True, verbose, k_d_training, folds, train_test_ratio)
-		print("network_train: ", network_train)
-		print("network_eval: ", network_eval)
+		# print("network_train: ", network_train)
+		# print("network_eval: ", network_eval)
 
 		networks.append(network_train)
 		networks_eval.append(network_eval)

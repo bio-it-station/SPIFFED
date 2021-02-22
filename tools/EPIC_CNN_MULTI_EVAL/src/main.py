@@ -15,31 +15,6 @@ import math
 import warnings
 warnings.filterwarnings('ignore')
 
-# def Goldstandard_from_cluster_File(gsF, foundprots=""):
-# 	clusters = GS.Clusters(need_to_be_mapped=False)
-# 	clusters.read_file(gsF)
-# 	if foundprots != "": clusters.remove_proteins(foundprots)
-# 	gs = GS.Goldstandard_from_Complexes("All")
-# 	gs.complexes = clusters
-# 	gs.make_pos_neg_ppis()
-# 	return gs
-#
-#
-# def Goldstandard_from_PPI_File(gsF, foundprots=""):
-# 	out = GS.Goldstandard_from_Complexes("gs")
-# 	gsFH = open(gsF)
-# 	for line in gsFH:
-# 		line = line.rstrip()
-# 		ida, idb, class_label = line.split("\t")[0:3]
-# 		if foundprots !="" and (ida not in foundprots or idb not in foundprots): continue
-# 		edge = "\t".join(sorted([ida, idb]))
-# 		if class_label == "positive":
-# 			out.positive.add(edge)
-# 		else:
-# 			out.negative.add(edge)
-# 	gsFH.close()
-# 	return out
-
 def main():
 	parser = argparse.ArgumentParser()
 	parser.add_argument("-s", "--feature_selection", type = str, help="Select which features to use. This is an 8 position long array of 0 and 1, where each position determines which co-elution feature to use. Features sorted by position are: MI, Bayes, Euclidean, WCC, Jaccard, PCCN, PCC, and Apex.  Each default=11101001", default="11101001")
@@ -81,9 +56,9 @@ def main():
 						default="NONE")
 
 	args = parser.parse_args()
-
 	args.mode = args.mode.upper()
 	args.fun_anno_source = args.fun_anno_source.upper()
+
 
 	##########################################
 	## This part is "PASE INPUT"
@@ -105,8 +80,6 @@ def main():
 	NUM_EP = 2
 	NUM_FRC = input("Enter number of fractions:")
 	POS_NEG_RATIO = input("Enter negative/positive ratio:")
-	# num_ep = 2
-	# num_frc = 27
 	##########################################
 	## End of "PASE INPUT"
 	##########################################
@@ -173,19 +146,17 @@ def main():
 	##########################################
 
 
-	# prots_pairs_ens = [(prots_ens[i],prots_ens[j]) for i in range(len(prots_ens)) for j in range(i+1, len(prots_ens))]
-	# print("prots_pairs_ens: ", prots_pairs_ens)
-	# print("len(prots_pairs_ens): ", len(prots_pairs_ens))
-	# random.shuffle(data)
-	#
-	# train_data = data[:50]
-	# test_data = data[50:]
-	#
-	# 	eval_dataset = random.choices(foundprots_ens, k=len(foundprots_ens)*TRAIN_TEST_RATIO)
-	#
-	# 	list = [20, 30, 40, 50 ,60, 70, 80]
-	# 	sampling = random.choices(list, k=4)
-	# 	train_dataset = None
+
+
+
+
+
+
+
+
+
+
+
 
 	networks = []
 	networks_eval = []
@@ -515,14 +486,6 @@ def main():
 	##########################################
 	## This part is "Reference Complex Creat"
 	##########################################
-	# input_dirs = []
-	# for each in os.listdir(args.input_dir):
-	# 	for file in os.listdir(os.path.join(args.input_dir, each)):
-	# 		input_dirs.append(os.path.join(args.input_dir, each, file))
-	#
-	# print "input_dirs: ", input_dirs
-	#
-	# foundprots_ens, elution_datas_ens = utils.load_data(input_dirs, this_scores, fc=args.frac_count, mfc=args.elution_max_count)
 	gs_clusters_ens = []
 	gs_clusters_ens.append(GS.FileClusters(args.cluster, foundprots_ens))
 	if len(gs_clusters_ens)>0:
