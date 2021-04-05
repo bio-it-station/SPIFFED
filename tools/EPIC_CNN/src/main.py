@@ -78,8 +78,8 @@ def main():
 	parser.add_argument("--POS_NEG_RATIO", type = int, help="default = 1", default=1)
 	# num_ep
 	parser.add_argument("--NUM_EP", type = int, help="default = 2", default=2)
-	# num_frc
-	parser.add_argument("--NUM_FRC", type = int, help="default = 27", default=27)
+	# # num_frc
+	# parser.add_argument("--NUM_FRC", type = int, help="default = 27", default=27)
 
 	# CNN Ensemble
 	parser.add_argument("--CNN_ENSEMBLE", type = int, help="0 means single elution profile; 1 means multiple elution profiles. default = 0", default=0)
@@ -107,7 +107,7 @@ def main():
 	TRAIN_TEST_RATIO = args.TRAIN_TEST_RATIO
 	POS_NEG_RATIO = args.POS_NEG_RATIO
 	NUM_EP = args.NUM_EP
-	NUM_FRC = args.NUM_FRC
+	# NUM_FRC = args.NUM_FRC
 	CNN_ENSEMBLE = args.CNN_ENSEMBLE
 
 	print("  * N_ESTIMATORS: ", N_ESTIMATORS)
@@ -118,7 +118,7 @@ def main():
 	print("  * TRAIN_TEST_RATIO: ", TRAIN_TEST_RATIO)
 	print("  * POS_NEG_RATIO: ", POS_NEG_RATIO)
 	print("  * NUM_EP: ", NUM_EP)
-	print("  * NUM_FRC: ", NUM_FRC)
+	# print("  * NUM_FRC: ", NUM_FRC)
 	print("  * CNN_ENSEMBLE: ", CNN_ENSEMBLE)
 
 	if CNN_ENSEMBLE == 1:
@@ -132,7 +132,7 @@ def main():
 	##########################################
 	## Create feature combination
 	##########################################
- 	if args.feature_selection == "00000000":
+	if args.feature_selection == "00000000":
 		print "** Select at least one feature"
 		sys.exit()
 	elif args.feature_selection == "000000000":
@@ -166,10 +166,12 @@ def main():
 	##########################################
 	if CNN_ENSEMBLE == 0:
 		foundprots, elution_datas = utils.load_data(args.input_dir, this_scores, fc=args.frac_count, mfc=args.elution_max_count)
+		NUM_FRC = elution_datas[0].elutionMat.shape[1]
 	##########################################
 	## End of "Load elution data"
 	##########################################
 
+	# Add a function to find all protein fractions
 	##########################################
 	## This part is "ALL PROTEIN PARTITION"
 	##########################################
@@ -190,6 +192,8 @@ def main():
 		# Load elution data
 		if CNN_ENSEMBLE == 1:
 	 		foundprots, elution_datas = utils.load_data(input_dir, this_scores, fc=args.frac_count, mfc=args.elution_max_count)
+			NUM_FRC = elution_datas[0].elutionMat.shape[1]
+
 		##########################################
 		## "Generate reference data set"
 		##########################################
@@ -314,25 +318,28 @@ def main():
 		for PPI in network:
 			items = PPI.split("\t")
 			if float(items[2]) >= args.classifier_cutoff:
-				if CNN_ENSEMBLE == 1:
-					####################################
-					## This part is "ENSEMBLE PPI CREAT"
-					####################################
-					key = items[0]+'\t'+items[1]
-					if key in PPI_voting_dic:
-						PPI_voting_dic[key].append(float(items[2]))
-					else:
-						PPI_voting_dic[key] = [float(items[2])]
-					####################################
-					## End of "ENSEMBLE PPI CREAT"
-					####################################
 				final_network.append(PPI)
+
+			if CNN_ENSEMBLE == 1:
+				####################################
+				## This part is "ENSEMBLE PPI CREAT"
+				####################################
+				key = items[0]+'\t'+items[1]
+				if key in PPI_voting_dic:
+					PPI_voting_dic[key].append(float(items[2]))
+				else:
+					PPI_voting_dic[key] = [float(items[2])]
+				####################################
+				## End of "ENSEMBLE PPI CREAT"
+				####################################
 
 		print >> outFH, "\n".join(final_network)
 		outFH.close()
 		#############################################
 		## End of "MODEL TRAINING & PREDICTION"
 		#############################################
+
+	print("** PPI_voting_dic: ", PPI_voting_dic)
 
 	if CNN_ENSEMBLE == 1:
 		##########################################
@@ -354,22 +361,22 @@ def main():
 			for PPI, edges in PPI_voting_dic.iteritems():
 				edges = np.array(edges)
 				avg_pos_edge = np.average(edges[edges >= 0.5])
-				ppi_edges = PPI + '\t' + str(avg_pos_edge)
+				ppi_final_edge = PPI + '\t' + str(avg_pos_edge)
 
 				# This is the condition for strict majority vote
 				pos_count = np.sum(edges >= 0.5)
 				if pos_count >= strict_majority:
-					final_network_str_maj.append(ppi_edges)
+					final_network_str_maj.append(ppi_final_edge)
 
 				# This is the condition for majority vote
 				majority = (len(edges)+2-1) // 2
 				if pos_count >= majority:
-					final_network_maj.append(ppi_edges)
+					final_network_maj.append(ppi_final_edge)
 
 				# This is the condition for one-agreement vote
 				any_pos = any(edges >= 0.5)
 				if any_pos:
-					final_network_one.append(ppi_edges)
+					final_network_one.append(ppi_final_edge)
 
 			print >> f1, "\n".join(final_network_str_maj)
 			print >> f2, "\n".join(final_network_maj)

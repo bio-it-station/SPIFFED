@@ -1304,6 +1304,27 @@ class CLF_Wrapper:
 		return self.get_metrics(probs, preds, targets)
 
 	# def get_metrics(self, probs, preds, targets):
+	def get_metrics_test_train(self, probs_test, preds_test, targets_test, probs_train, preds_train, targets_train):
+		precision_test = metrics.precision_score(targets_test, preds_test, average=None)[1]
+		recall_test = metrics.recall_score(targets_test, preds_test, average=None)[1]
+		fmeasure_test = metrics.f1_score(targets_test, preds_test, average=None)[1]
+		auc_pr_test = average_precision_score(targets_test, preds_test)
+		auc_roc_test = roc_auc_score(targets_test, preds_test)
+		curve_pr_test = precision_recall_curve(targets_test, probs_test)
+		curve_roc_test = roc_curve(targets_test, probs_test)
+
+		precision_train = metrics.precision_score(targets_train, preds_train, average=None)[1]
+		recall_train = metrics.recall_score(targets_train, preds_train, average=None)[1]
+		fmeasure_train = metrics.f1_score(targets_train, preds_train, average=None)[1]
+		auc_pr_train = average_precision_score(targets_train, preds_train)
+		auc_roc_train = roc_auc_score(targets_train, preds_train)
+		curve_pr_train = precision_recall_curve(targets_train, probs_train)
+		curve_roc_train = roc_curve(targets_train, probs_train)
+
+		return [targets_test, preds_test, probs_test, precision_test, recall_test, fmeasure_test, auc_pr_test, auc_roc_test, curve_pr_test, curve_roc_test,
+			targets_train, preds_train, probs_train, precision_train, recall_train, fmeasure_train, auc_pr_train, auc_roc_train, curve_pr_train, curve_roc_train]
+
+	# def get_metrics(self, probs, preds, targets):
 	def get_metrics(self, probs, preds, targets):
 		precision = metrics.precision_score(targets, preds, average=None)[1]
 		recall = metrics.recall_score(targets, preds, average=None)[1]
@@ -1314,7 +1335,6 @@ class CLF_Wrapper:
 		curve_roc = roc_curve(targets, probs)
 
 		return [targets, preds, probs, precision, recall, fmeasure, auc_pr, auc_roc, curve_pr, curve_roc]
-		# return [targets, preds, probs, precision, recall, fmeasure, auc_pr, auc_roc, curve_pr, curve_roc]
 
 
 	def cv_eval(self, data, targets, uns_data, uns_targets, outDir, folds=None, train_test_ratio=None, num_ep = 2, num_frc = None):
@@ -1323,9 +1343,13 @@ class CLF_Wrapper:
 			print("******* K-fold Evaluating (baseline model)")
 			print "    Fold number : " + str(folds)
 			skf = StratifiedKFold(folds)
-			probs = []
-			preds = []
-			this_targets = []
+			probs_test = []
+			preds_test = []
+			this_targets_test = []
+
+			probs_train = []
+			preds_train = []
+			this_targets_train = []
 			i = 1
 			for train, test in skf.split(data, targets):
 				#print "Processing fold %i" % i
@@ -1334,9 +1358,18 @@ class CLF_Wrapper:
 				self.clf = CNN_raw_ef_model(num_ep, num_frc)
 				self.clf.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
 				self.fit(data[train], targets[train])
-				probs.extend(self.predict_proba(data[test]))
-				preds.extend(self.predict(data[test]))
-				this_targets.extend(targets[test])
+				##################################
+				# This is for testing evaluation #
+				##################################
+				probs_test.extend(self.predict_proba(data[test]))
+				preds_test.extend(self.predict(data[test]))
+				this_targets_test.extend(targets[test])
+				###################################
+				# This is for training evaluation #
+				###################################
+				probs_train.extend(self.predict_proba(data[train]))
+				preds_train.extend(self.predict(data[train]))
+				this_targets_train.extend(targets[train])
 				# loss, accuracy = self.clf.evaluate(data[test], targets[test], verbose=0)
 		elif self.k_d_train == "d":
 			print("******* Direct-training Evaluating (baseline model)")
@@ -1349,21 +1382,30 @@ class CLF_Wrapper:
 
 			if self.classifier_select == "RF":
 				self.fit(x_train, y_train)
-				probs = self.predict_proba(x_test)
-				preds = self.predict(x_test)
-				this_targets = y_test
+				probs_test = self.predict_proba(x_test)
+				preds_test = self.predict(x_test)
+				this_targets_test = y_test
+
+				probs_train = self.predict_proba(x_train)
+				preds_train = self.predict(x_train)
+				this_targets_train = y_train
 			# This is the baseline model
 			elif self.classifier_select == "CNN":
 				print "Processing data..."
 				self.clf = CNN_raw_ef_model(num_ep, num_frc)
 				self.clf.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
 				self.fit(x_train, y_train)
-				probs = self.predict_proba(x_test)
-				preds = self.predict(x_test)
-				this_targets = y_test
+				probs_test = self.predict_proba(x_test)
+				preds_test = self.predict(x_test)
+				this_targets_test = y_test
+
+				probs_train = self.predict_proba(x_train)
+				preds_train = self.predict(x_train)
+				this_targets_train = y_train
 			elif self.classifier_select == "LS":
 				pass
-		return self.get_metrics(probs, preds, this_targets)
+		return self.get_metrics_test_train(probs_test, preds_test, this_targets_test,
+							    probs_train, preds_train, this_targets_train)
 		# return self.get_metrics(probs, preds, this_targets)
 
 
@@ -1538,7 +1580,7 @@ class CLF_Wrapper:
 		return self.get_metrics(probs, preds, this_targets)
 
 		# return self.get_metrics(probs, preds, this_targets, probs_all_pos_neg, preds_all_pos_neg, this_targets_all_pos_neg)
-		return self.get_metrics(probs, preds, this_targets)
+		# return self.get_metrics(probs, preds, this_targets)
 
 	def cv_model_creation(self, data, targets, uns_data, uns_targets, folds=None, train_test_ratio=None, num_ep = 2, num_frc = None):
 		print "Final Model Creation!"

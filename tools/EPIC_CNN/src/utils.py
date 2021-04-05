@@ -169,9 +169,13 @@ def cv_bench_clf(scoreCalc, clf, gs, outDir, verbose=False, learning_selection =
 
 	if learning_selection == 'sl':
 		## This can be set to baseline model
-		this_targets, preds, probs, precision, recall, fmeasure, auc_pr, auc_roc, curve_pr, curve_roc = clf.cv_eval(data, targets, unsure_data, unsure_targets, outDir, folds, train_test_ratio, num_ep, num_frc)
+		this_targets_test, preds_test, probs_test, precision_test, recall_test, fmeasure_test, auc_pr_test, auc_roc_test, curve_pr_test, curve_roc_test, this_targets_train, preds_train, probs_train, precision_train, recall_train, fmeasure_train, auc_pr_train, auc_roc_train, curve_pr_train, curve_roc_train = clf.cv_eval(data, targets, unsure_data, unsure_targets, outDir, folds, train_test_ratio, num_ep, num_frc)
 		outDir_all_pos_neg_testing = outDir + os.sep + "all_pos_neg_testing"
-		eval_plotting(outDir_all_pos_neg_testing, this_targets, preds, probs, precision, recall, fmeasure, auc_pr, auc_roc, curve_pr, curve_roc)
+		outDir_all_pos_neg_training = outDir + os.sep + "all_pos_neg_training"
+
+		eval_plotting(outDir_all_pos_neg_testing, this_targets_test, preds_test, probs_test, precision_test, recall_test, fmeasure_test, auc_pr_test, auc_roc_test, curve_pr_test, curve_roc_test)
+		eval_plotting(outDir_all_pos_neg_training, this_targets_train, preds_train, probs_train, precision_train, recall_train, fmeasure_train, auc_pr_train, auc_roc_train, curve_pr_train, curve_roc_train)
+
 
 	if learning_selection == 'ssl':
 		## This is the evaluation for semi-supervised learning
@@ -180,7 +184,7 @@ def cv_bench_clf(scoreCalc, clf, gs, outDir, verbose=False, learning_selection =
 		eval_plotting(outDir_all_pos_neg_testing, this_targets, preds, probs, precision, recall, fmeasure, auc_pr, auc_roc, curve_pr, curve_roc)
 
 	rownames = ["Precision", "Recall", "F-Measure", "AUC PR", "AUC ROC"]
-	return rownames, [precision, recall, fmeasure, auc_pr, auc_roc]
+	# return rownames, [precision, recall, fmeasure, auc_pr, auc_roc]
 
 # def bench_clf(scoreCalc, train, eval, clf, outDir, verbose=False, format = "pdf"):
 # 	_, data_train, targets_train = scoreCalc.toSklearnData(train)
@@ -334,7 +338,7 @@ def predictInteractions(scoreCalc, clf, gs, outDir, to_train=True, verbose= True
 
 	this_targets, preds, probs, precision, recall, fmeasure, auc_pr, auc_roc, curve_pr, curve_roc = clf.cv_model_creation(data, targets, unsure_data, unsure_targets, folds, train_test_ratio, num_ep, num_frc)
 
-	outDir_all_pos_neg_train = outDir + os.sep + "all_pos_neg_training"
+	outDir_all_pos_neg_train = outDir + os.sep + "all_pos_neg_training_whole"
 	eval_plotting(outDir_all_pos_neg_train, this_targets, preds, probs, precision, recall, fmeasure, auc_pr, auc_roc, curve_pr, curve_roc)
 
 	this_targets, preds, probs, precision, recall, fmeasure, auc_pr, auc_roc, curve_pr, curve_roc = clf.cv_model_all_pos_neg_eval(data_all, targets_all, folds, train_test_ratio)
