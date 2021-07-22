@@ -1,4 +1,4 @@
-# EPPC: the tool for improving EPIC results
+# SPIFFED – Software for Prediction of Interactome with Feature-extraction Free Elution Data
 
 ## Main goal
 Improve the current best elution profile-based protein complexes inference tool -- EPIC
