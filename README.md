@@ -110,14 +110,7 @@ In this section, I wrote some example commands for users to run EPPC with cleare
 > `python ./main.py -s 11101001 /home/kuan-hao/EPPC/input/OUR_DATA/intensity_high/ -c /home/kuan-hao/EPPC/input/real_data/gold_standard.tsv /home/kuan-hao/EPPC/output/TEST/ -o TEST -M RF -n 6 -m EXP -f STRING --LEARNING_SELECTION sl --K_D_TRAIN d --FOLD_NUM 5 --TRAIN_TEST_RATIO 0.3 --POS_NEG_RATIO 1 --NUM_EP 2 --NUM_FRC 27 --CNN_ENSEMBLE 0`
 
 * SL: Raw EPs + CNN (Supervised Learning: raw inputs + convolutional neural networks):
-> `python ./main.py -s 11101001 /home/kuan-hao/EPPC/input/OUR_DATA/intensity_high/ -c /home/kuan-hao/EPPC/input/real_data/gold_standard.tsv /home/kuan-hao/EPPC/output/TEST/ -o TEST -M CNN -n 6 -m EXP -f STRING --LEARNING_SELECTION sl --K_D_TRAIN d --FOLD_NUM 5 --TRAIN_TEST_RATIO 0.3 --POS_NEG_RATIO 1 --NUM_EP 2 --NUM_FRC 27 --CNN_ENSEMBLE 0`
-
-* SSL: Raw EPs + CNN (Semi-supervised learning: raw inputs + convolutional neural networks):
-> `python ./main.py -s 000000001 /home/kuan-hao/EPPC/input/OUR_DATA/intensity_high/ -c /home/kuan-hao/EPPC/input/real_data/gold_standard.tsv /home/kuan-hao/EPPC/output/TEST/ -o TEST -M CNN -n 6 -m EXP -f STRING --LEARNING_SELECTION ssl --K_D_TRAIN d --FOLD_NUM 5 --TRAIN_TEST_RATIO 0.7 --POS_NEG_RATIO 1 --NUM_EP 2 --NUM_FRC 27 --CNN_ENSEMBLE 0`
-
-
-* SSL: Raw EPs + LS (Semi-supervised learning: raw inputs + label spreading):
-> `python ./main.py -s 000000001 /home/kuan-hao/EPPC/input/OUR_DATA/intensity_high/ -c /home/kuan-hao/EPPC/input/real_data/gold_standard.tsv /home/kuan-hao/EPPC/output/TEST/ -o TEST -M LS -n 6 -m EXP -f STRING --LEARNING_SELECTION ssl --K_D_TRAIN d --FOLD_NUM 5 --TRAIN_TEST_RATIO 0.7 --POS_NEG_RATIO 1 --NUM_EP 2 --NUM_FRC 27 --CNN_ENSEMBLE 0`
+> `python ./main.py -s 000000001 /home/kuan-hao/EPPC/input/OUR_DATA/intensity_high/ -c /home/kuan-hao/EPPC/input/real_data/gold_standard.tsv /home/kuan-hao/EPPC/output/TEST/ -o TEST -M CNN -n 6 -m EXP -f STRING --LEARNING_SELECTION sl --K_D_TRAIN d --FOLD_NUM 5 --TRAIN_TEST_RATIO 0.3 --POS_NEG_RATIO 1 --NUM_EP 2 --NUM_FRC 27 --CNN_ENSEMBLE 0`
 
 ---
 
