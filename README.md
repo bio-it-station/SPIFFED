@@ -1,7 +1,7 @@
-# SPIFFED – Software for Prediction of Interactome with Feature-extraction Free Elution Data
+![logo](SPIFFED_logo_2_.png)
 
-## Main goal
-Improve the current best elution profile-based protein complexes inference tool -- EPIC
+# SPIFFED – Software for Prediction of Interactome with Feature-extraction Free Elution Data
+A balanced end-to-end deep learning model for interactome prediction from co-fractionation/mass-spectrometry (CF-MS) data
 
 ---
 
@@ -9,7 +9,7 @@ Improve the current best elution profile-based protein complexes inference tool 
 
 To install EPIC, first make sure you have Python 2.7 and scikit-learn package installed. Also one correlation score ("wcc") utilizes R to perform computation, thus R and rpy2 should be installed in your computer too.
 
-We recommend using the conda environemnt to run EPIC and install associated libraries. Anaconda/Miniconda can be downloaded from "https://conda.io/docs/user-guide/install/download.html#anaconda-or-miniconda"
+We recommend using the conda environment to run EPIC and install associated libraries. Anaconda/Miniconda can be downloaded from "https://conda.io/docs/user-guide/install/download.html#anaconda-or-miniconda"
 
 Create an Conda environment: type "`conda create -n EPIC python=2.7 anaconda`"
 
