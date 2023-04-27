@@ -34,7 +34,7 @@ Here is a list of dependent packages:
 
 ---
 
-## Run EPPC
+## Run SPIFFED
 Here is the main and only one command that you need to run:
 
 > python ./src/main.py -s <b>`feature_selection`</b> <b>`input_directory`</b> -c <b>`gold_standard_file_path`</b> <b>`output_directory`</b> -o <b>`output_filename_prefix`</b> -M <b>`training_method`</b> -n <b>`number_of_cores`</b> -m EXP -f STRING --LEARNING_SELECTION <b>`learning method selection`</b> --K_D_TRAIN <b>`fold_or_direct_training`</b> --FOLD_NUM <b>`number_of_folds`</b> --TRAIN_TEST_RATIO <b>`testing_data_ratio`</b> --POS_NEG_RATIO <b>`negative_PPIs_ratio`</b> --NUM_EP <b>`number_of_elution_profiles`</b> --NUM_FRC <b>`number_of_fractions`</b> --CNN_ENSEMBLE <b>`ensemble_bool`</b>
