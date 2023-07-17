@@ -15,7 +15,14 @@ To install SPIFFED, first make sure you have Python 2.7
 
 ```
 $ git clone https://github.com/bio-it-station/SPIFFED
+$ conda create -n "EPIC_test" python=2.7.16
+
 $ pip install -r requirements.txt
+$ pip install beautifulsoup4
+$ pip install tensorflow==1.13.1
+$ pip install Keras==2.2.4
+$ conda install rpy2
+$ pip install scikit-plot
 ```
 
 
