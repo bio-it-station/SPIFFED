@@ -39,11 +39,10 @@ import gzip
 import requests
 import copy
 
-
-from keras.models import Sequential
-from keras.layers import Dense, Conv1D, Conv2D, MaxPooling2D, Flatten, Activation, Dropout
-from keras.utils import to_categorical
-from keras.callbacks import EarlyStopping
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, Conv1D, Conv2D, MaxPooling2D, Flatten, Activation, Dropout
+from tensorflow.keras.utils import to_categorical
+from tensorflow.keras.callbacks import EarlyStopping
 #from keras.models import Sequential, Model
 #from keras.layers import Dense, Dropout, Input
 #from keras import regularizers

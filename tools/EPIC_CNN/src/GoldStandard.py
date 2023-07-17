@@ -594,11 +594,14 @@ class Goldstandard_from_Complexes():
 	# @Param:
 	#		CalculateCoElutionScores toMerge a second CalculateCoElutionScores which should be combined with self object
 	def rebalance(self, ratio = 5):
-		if len(self.positive) * self.ratio > len(self.negative):
-			self.positive = set(rnd.sample(self.positive, int(len(self.negative) / self.ratio)))
-			print("Warning: not enough negative data points in reference to create desired ratio pos:%s, neg:%s" % (len(self.positive), len(self.negative)))
+		if ratio == 50:
+			print "Pass. Use the original ratio"
 		else:
-			self.negative = set(rnd.sample(self.negative, len(self.positive)*self.ratio))
+			if len(self.positive) * self.ratio > len(self.negative):
+				self.positive = set(rnd.sample(self.positive, int(len(self.negative) / self.ratio)))
+				print("Warning: not enough negative data points in reference to create desired ratio pos:%s, neg:%s" % (len(self.positive), len(self.negative)))
+			else:
+				self.negative = set(rnd.sample(self.negative, len(self.positive)*self.ratio))
 
 
 class Intact_clusters():

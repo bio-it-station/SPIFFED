@@ -322,8 +322,9 @@ class Bayes:
 # @ author Florian Goebels
 # returns weighted cross correlation similarity score which is based on previously published methods Pierre 2011 et al.
 def calculateScore_wcc(a,b):
-	global r_wcc
-	return r_wcc(robjects.FloatVector(a), robjects.FloatVector(b), 1)[0]
+	return None
+	# global r_wcc
+	# return r_wcc(robjects.FloatVector(a), robjects.FloatVector(b), 1)[0]
 
 class Wcc:
 	calculateScore = staticmethod(calculateScore_wcc)
